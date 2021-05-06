@@ -1,16 +1,22 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Video;
 
 public class StartupController : MonoBehaviour
 {
     public float logoDur = 5f;
 
+    private Queue<FileInfo> videoList;
+
     private Canvas canvas;
 
     // video player panel, menu background panel, logo panel
     private GameObject vppanel, mbgpanel, logopanel;
+
+
 
    private IEnumerator LogoAnimation(float dur)
     {
@@ -41,11 +47,24 @@ public class StartupController : MonoBehaviour
         }
     }
 
-    //public void NextVid()
-    //{
-    //    VideoPlayer vp = vppanel.GetComponent<VideoPlayer>();
-    //    vp.url = 
-    //}
+    private void ParseVids()
+    {
+        DirectoryInfo dir = new DirectoryInfo("./Assets/VideoPlayer");
+        var fia = dir.GetFiles("*.m4v");
+        videoList = new Queue<FileInfo>();
+        foreach (FileInfo fi in fia)
+        {
+            videoList.Enqueue(fi);
+        }
+    }
+
+    public void NextVid()
+    {
+        VideoPlayer vp = vppanel.GetComponent<VideoPlayer>();
+        var fi = videoList.Dequeue();
+        videoList.Enqueue(fi);
+        vp.url = fi.FullName;
+    }
 
     public void Quit()
     {
@@ -66,6 +85,8 @@ public class StartupController : MonoBehaviour
         mbgpanel = transform.Find("menu bg panel").gameObject;
         logopanel = transform.Find("logo panel").gameObject;
         StartCoroutine(LogoAnimation(logoDur));
+        ParseVids();
+        NextVid();
     }
 
     // Update is called once per frame
