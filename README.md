@@ -5,8 +5,7 @@ Hello everyone!
 
 Just writing this as a quick explanation to the project to help people work on it if you decide to use it; feel free of course to ask me any questions about it, I may not be able to respond immediately but will probably be able to get back to you on it before long.
 
-Not sure how much experience with Unity everybody has, so will try to explain things as I go; I also feel like I should preface that I'm not a Unity super user, I've made some things before and they turned out well, but it's been a while so I'm a bit rusty.
-
+Not sure how much experience with Unity everybody has, so will try to explain things as I go; I also feel like I should preface that I'm not a Unity super user, I've made some things before and they turned out well, but it's been a while so I'm a bit rusty, also another warning my capitalisation and notation isn't entirely consistent all the way through this doc, I had no idea how exhausting it'd all be to explain erring on the side of caution, so went over multiple times hence some inconsistency.
 
 
 Anyhow, to open the project in Unity:
@@ -76,7 +75,7 @@ If you scroll down to the bottom of the file, you'll find our point of entry: th
 
 In our start function, you can see first of all that we assign some variables: vppanel, mbgpanel, etc. (apologies for terrible variable names). These represent the video player, menu background, and logo child objects that you can see under the canvas object in the hierarchy. Essentially we're just getting references to them for later.
 
-We then initiate the logo animation, this is implemented as a coroutine currently which I'll go into later. Then we parse the assets folder for video clips (this would be where I imagine the scenario json parsing would be inserted), I then call "NextVid" to pop the queue once to avoid double clicking the button the first time in, try commenting it out and running the game to see what I mean.
+We then initiate the logo animation, this is implemented as a coroutine currently which I'll go into later. Then we parse the assets folder for video clips (this would be where I imagine the scenario json parsing would be inserted), I then call "NextVid" to load the first video clip into the player.
 
 By the way, if you make any changes to the code, Unity will automatically compile it and warn you of errors when you switch back to the main Unity window. To play the scene, you just need to hit the play button at the top in the center of the main window of Unity, it should then automatically switch to the game tab allowing interaction. It's pretty basic as you've probably seen from the video:
 
@@ -158,7 +157,17 @@ So, these panels I've been talking about are basically just objects that are chi
 
 The logo panel is by far the simplest, it's also the only panel that is active at when starting the game, although invisible due to it's alpha being set to 0 in anticipation of the animation. It is literally just a basic UI object, with an Image component that links to Assets/Textures/studio logo.png, and a canvas group (even though it has no children, just easier to modify alpha this way).
 
-The menu background panel is the next thing we see, which is much like the logo panel in that it has an Image component (Assets/Textures/background.png) and a canvas group. However, it is inactive by default as it is activated by the animation, and it also has another component to it (the vertical layout group), and some children. The vertical layout group is a convenient component that automatically lays out the children in a vertical configuration; there are various parameters we can adjust to affect the layout and I basically just tried to roughly copy the WPF version.
+The menu background panel is the next thing we see, which is much like the logo panel in that it has an Image component (Assets/Textures/background.png) and a canvas group. However, it is inactive by default as it is activated by the animation, and it also has another component to it (the vertical layout group), and some children. The Vertical Layout Group is a convenient component that automatically lays out the children in a vertical configuration; there are various parameters we can adjust to affect the layout and I basically just tried to roughly copy the WPF version.
 The children are the four vertically arranged button objects, each having an Image (the button's sprite) and the Button component itself, which we can configure in the inspector.
 
 If we select the topmost button under menu bg panel in the hierarchy and examine it in the inspector by scrolling down to it, we can see that it has two OnClick objects and methods linked: GameObject.SetActive(true) on video player panel, and GameObject.SetActive(false) on menu bg panel. This will, as you may have guessed, activate the until now inactive video player panel, and deactivate its parent the menu bg panel, effectively switching to the game screen. Replacing this with an animation would be as easy as writing the function (probably abstract the logo animation code) to do so and then linking to that instead. The button objects also each have their own child with a Text component, labelling the buttons; these are in child objects because Unity only permits one "graphic" component per object.
+
+The video player panel is the most complex of the UI elements currently, although still not very much so. It is similar to the menu background panel, but has a few key differences, namely that it has a RawImage component instead of an Image component, as it needs to display a RenderTexture not just a sprite, and that it has a Grid Layout Group component instead of the vertical one, though they function in much the same way. The biggest difference however, is of course that it contains the Video Player component. 
+
+The Video Player is fairly simple, it takes a clip or a URL, and then renders it to the RenderTexture that is connected to the RawImage; it also has all the standard controls you might expect, which are accessible through public methods.
+
+The video player panel also has button children, although the back button (the topmost child), has a LayoutElement component which is used to exempt it from the grid layout scheme. The back button takes you back to the menu, again by just switching which objects are active. The only other button that does anything is the top left button in the grid, which calls NextVid, thereby cycling which video plays.
+
+I think this about covers it, any questions just ping me or dm me.
+
+Functionally, I think the only changes that should be necessary for the game code coming from the WPF project would be to ensure there are public methods which the buttons can hook for game choices to update the game state, and also methods calling outward to control which video clip is playing and whether it's paused based on the game logic.
