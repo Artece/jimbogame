@@ -34,7 +34,9 @@ The project panel will allow you to explore the file structure of the project an
 
 The console displays build errors and debug messages (for devs, Debug.Log() is how you output to this mainly).
 
-*\*scenes are what Unity uses to encapsulate the idea of what is currently loaded and being displayed, think like a level in an old-school game; it's possible to have multiple scenes in a project and switch between them, but currently this project only has one.*
+TLDR for artists: To import assets of any kind (images, video, audio, etc.) just drag and drop into the project panel, the inspector will let you tweak things further. Also you might wanna hit "File->Save Project", I won't lie in that I don't really know if you need to, but it assuages my paranoia.
+
+*\*scenes are what Unity uses to encapsulate the idea of what is currently loaded and being displayed, think like a level in an old-school game; it's possible to have multiple scenes in a project and switch between them, but currently this project only has one. Any changes to the scene you must do "File->Save" or hit Ctrl-s*
 
 *\*\*the canvas is what Unity's UI system uses to represent the screen of your device, it also functionally acts as a root object for all UI objects in the scene.*
 
@@ -44,13 +46,15 @@ Our scene SampleScene.unity is in the Scenes/ folder.
 Textures contains some really quick placeholder assets I made to more or less emulate what I saw in the WPF project.
 VideoPlayer contains some random clips from discord to serve as placeholders, as well as an internal Unity object (VideoTexutre.renderTexture) that Unity uses for playing videos.
 
-Artists, feel free of course to replace any of the placeholder assets.
+Artists, feel free of course to replace any of my scuffed placeholder assets.
 
 If we go to the hierarchy panel and expand some of the dropdowns on the objects inside, then select the Canvas, we should see something like this:
 
 ![2](https://user-images.githubusercontent.com/25913592/117659672-26d98d80-b194-11eb-9c51-3d5b4363a044.PNG)
 
 In the inspector, we can see multiple things separated into sections. **These are known as components in Unity; each object can have lots of components attached to it.** At the bottom of this list, we can see a Script component, connected to the file Assets/Scripts/StartupController.cs.
+
+**Just a side note, but almost every object in Unity will have "GameObject" and "Transform" or "Rect Transform" components.**
 
 If you go to the project panel and navigate to Assets/Scripts/ then open StartupController.cs, it should open in VisualStudio like so:
 
@@ -121,9 +125,40 @@ We then repeat the same process only half way this time, hence diving the durati
 
 The menu panel currently has four buttons to emulate the look of the WPF project, but only the top and bottom buttons have any function currently; the top initiates the "game" and the bottom will quit.
 
-Clicking any button will activate the "OnClick" method for that button, which in the top button's case will deactivate the menu background panel and activate the videoplayer panel.
+Clicking any button will activate the "OnClick" method for that button, which is a feature of Unity's button component that allows you to assign public methods from any other object(s) in the scene that will be called when the button is clicked. In the top button's case, this will deactivate the menu background panel and activate the videoplayer panel. I didn't bother animating this as I felt that'd been shown already so it's just a hard transition right now by swapping which panels are active.
 
 This panel also has buttons: a back button to return to the menu screen, and four buttons emulating the game controls / the choice menu. At present, only the top left of these buttons does anything, which is just call the "Nextvid" function, rotating which video is playing.
 
+The functions "ParseVids" and "NextVid" shouldn't be too hard to figure out but I'll just briefly go through them:
 
+    private void ParseVids()
+    {
+        DirectoryInfo dir = new DirectoryInfo("./Assets/VideoPlayer");
+        var fia = dir.GetFiles("*.m4v");
+        videoList = new Queue<FileInfo>();
+        foreach (FileInfo fi in fia)
+        {
+            videoList.Enqueue(fi);
+        }
+    }
 
+    public void NextVid()
+    {
+        VideoPlayer vp = vppanel.GetComponent<VideoPlayer>();
+        var fi = videoList.Dequeue();
+        videoList.Enqueue(fi);
+        vp.url = fi.FullName;
+    }
+
+All that's basically happening is that in ParseVids we look inside the Assets/VideoPlayer/ folder and get a list of all files with an extension of ".m4v", then we store them all in a queue for later use. NextVid essentially just pops the clip we want off the queue and then requeues it in order to cycle, setting the video player's source url to be the path of the clip we just cycled to.
+
+That's pretty much all the code right now except Quit, which just either quits or stops the editor playing, so I'll just go through some of the things in Unity itself to flesh out my explanation.
+
+So, these panels I've been talking about are basically just objects that are children of the canvas object, they have various UI components like "Image", "RawImage" or "Button" attached to them to help them function. There are three right now, and to be honest we may not ever need more than that, it just depends what paradigm people prefer. I'm sure you may already have a pretty good idea of what they each do (assuming my readme has been of any use), but I'll just briefly run through and explain anyway to clarify any doubts that may still be lingering:
+
+The logo panel is by far the simplest, it's also the only panel that is active at when starting the game, although invisible due to it's alpha being set to 0 in anticipation of the animation. It is literally just a basic UI object, with an Image component that links to Assets/Textures/studio logo.png, and a canvas group (even though it has no children, just easier to modify alpha this way).
+
+The menu background panel is the next thing we see, which is much like the logo panel in that it has an Image component (Assets/Textures/background.png) and a canvas group. However, it is inactive by default as it is activated by the animation, and it also has another component to it (the vertical layout group), and some children. The vertical layout group is a convenient component that automatically lays out the children in a vertical configuration; there are various parameters we can adjust to affect the layout and I basically just tried to roughly copy the WPF version.
+The children are the four vertically arranged button objects, each having an Image (the button's sprite) and the Button component itself, which we can configure in the inspector.
+
+If we select the topmost button under menu bg panel in the hierarchy and examine it in the inspector by scrolling down to it, we can see that it has two OnClick objects and methods linked: GameObject.SetActive(true) on video player panel, and GameObject.SetActive(false) on menu bg panel. This will, as you may have guessed, activate the until now inactive video player panel, and deactivate its parent the menu bg panel, effectively switching to the game screen. Replacing this with an animation would be as easy as writing the function (probably abstract the logo animation code) to do so and then linking to that instead. The button objects also each have their own child with a Text component, labelling the buttons; these are in child objects because Unity only permits one "graphic" component per object.
