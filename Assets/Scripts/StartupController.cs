@@ -4,66 +4,105 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Video;
+using Models;
 
 public class StartupController : MonoBehaviour
 {
-    public float logoDur = 5f;
+    public float introDuration = 2f;
+
+    public Sprite mainMenuBg1, mainMenuBg2, pressAnyKeyScreen;
 
     private Queue<FileInfo> videoList;
 
+    private List<DirectoryInfo> scenarios;
+
     private Canvas canvas;
 
-    // video player panel, menu background panel, logo panel
-    private GameObject vppanel, mbgpanel, logopanel;
+    // video player panel, menu background panel, studio logo panel, scenario select panel
+    private GameObject vpp, mbp, slp, ssp;
 
-
-
-   private IEnumerator LogoAnimation(float dur)
+   private IEnumerator MenuAnimation()
     {
-        yield return new WaitForSeconds(dur/4);
-
-        CanvasGroup lpc = logopanel.GetComponent<CanvasGroup>();
-        float t = 0f;
-
-        while (t < dur)
+        var mbi = mbp.GetComponent<Image>();
+        var q = new Queue<Sprite>();
+        q.Enqueue(mainMenuBg1);
+        q.Enqueue(mainMenuBg2);
+        while (mbp.activeSelf)
         {
-            t += Time.deltaTime;
-            lpc.alpha = Mathf.Sin(3.14f * t / dur);
-            yield return null;
-        }
-        
-        logopanel.SetActive(false);
-
-        mbgpanel.SetActive(true);
-        CanvasGroup mpc = mbgpanel.GetComponent<CanvasGroup>();
-        
-        t = 0f;
-        dur /= 2;
-        while (t < dur)
-        {
-            t += Time.deltaTime;
-            mpc.alpha = Mathf.Sin(1.57f * t / dur);
-            yield return null;
+            yield return new WaitForSeconds(5f);
+            var bg = q.Dequeue();
+            mbi.sprite = bg;
+            q.Enqueue(bg);
         }
     }
 
-    private void ParseVids()
+   private IEnumerator IntroAnimation(float dur)
     {
-        DirectoryInfo dir = new DirectoryInfo("./Assets/VideoPlayer");
-        var fia = dir.GetFiles("*.m4v");
-        videoList = new Queue<FileInfo>();
-        foreach (FileInfo fi in fia)
+        float hdur = dur * .5f, qdur = dur * .25f, hpi = 1.57f, pi = 3.14f;
+
+        yield return new WaitForSeconds(qdur);
+
+        CanvasGroup lpc = slp.GetComponent<CanvasGroup>();
+
+        for (float t = 0f;  t < hdur; t += Time.deltaTime)
         {
-            videoList.Enqueue(fi);
+            lpc.alpha = Mathf.Sin(pi * t / hdur);
+            yield return null;
         }
+
+        slp.GetComponent<Image>().sprite = pressAnyKeyScreen;
+
+        for (float t = 0f; t < qdur; t += Time.deltaTime)
+        {
+            lpc.alpha = Mathf.Sin(hpi * t / qdur);
+            yield return null;
+        }
+
+        yield return new WaitUntil(() => Input.anyKey);
+
+        for (int i = 0; i < 3; i++)
+        {
+            slp.GetComponentInChildren<Text>().CrossFadeAlpha(0f, 0.05f, false);
+            yield return new WaitForSeconds(0.05f);
+            slp.GetComponentInChildren<Text>().CrossFadeAlpha(1f, 0.05f, false);
+            yield return new WaitForSeconds(0.05f);
+        }
+        slp.GetComponentInChildren<Text>().CrossFadeAlpha(0f, 0.05f, false);
+        yield return new WaitForSeconds(0.05f);
+
+        for (float t = 0f; t < qdur; t += Time.deltaTime)
+        {
+            lpc.alpha = Mathf.Sin(hpi + (hpi * t / qdur));
+            yield return null;
+        }
+
+        slp.SetActive(false);
+        mbp.SetActive(true);
+
+        CanvasGroup mpc = mbp.GetComponent<CanvasGroup>();
+
+        for (float t = 0f; t < qdur; t += Time.deltaTime)
+        {
+            mpc.alpha = Mathf.Sin(hpi * t / qdur);
+            yield return null;
+        }
+
+        StartCoroutine(MenuAnimation());
+    }
+    private void ParseScenarios()
+    {
+        DirectoryInfo dir = new DirectoryInfo("./Assets/Scenarios");
+        scenarios = new List<DirectoryInfo>(dir.GetDirectories());
     }
 
-    public void NextVid()
+    public void SwitchToScenarioSelectScreen()
     {
-        VideoPlayer vp = vppanel.GetComponent<VideoPlayer>();
-        var fi = videoList.Dequeue();
-        videoList.Enqueue(fi);
-        vp.url = fi.FullName;
+        mbp.SetActive(false);
+
+        foreach (var s in scenarios)
+        {
+            
+        }
     }
 
     public void Quit()
@@ -81,12 +120,12 @@ public class StartupController : MonoBehaviour
     void Start()
     {
         //canvas = GetComponent<Canvas>();
-        vppanel = transform.Find("video player panel").gameObject;
-        mbgpanel = transform.Find("menu bg panel").gameObject;
-        logopanel = transform.Find("logo panel").gameObject;
-        StartCoroutine(LogoAnimation(logoDur));
-        ParseVids();
-        NextVid();
+        vpp = transform.Find("VPP").gameObject;
+        mbp = transform.Find("MBP").gameObject;
+        slp = transform.Find("SLP").gameObject;
+        ssp = transform.Find("SSP").gameObject;
+        StartCoroutine(IntroAnimation(introDuration));
+        ParseScenarios();
     }
 
     // Update is called once per frame

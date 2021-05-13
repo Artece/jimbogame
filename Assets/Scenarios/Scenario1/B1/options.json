@@ -1,0 +1,22 @@
+[
+  {
+    "Path": {
+      "Branch": "A",
+      "StartPosition": "1"
+    },
+    "Label": "go to A1",
+    "VideoFilename": "B1choice1.avi"
+  },
+  {
+    "Path": {
+      "Branch": "C",
+      "StartPosition": "1"
+    },
+    "Label": "go to C1",
+    "VideoFilename": "B1choice2.avi"
+  },
+  {
+    "Label": "continue",
+    "VideoFilename": "B1choice3.avi"
+  }
+]
