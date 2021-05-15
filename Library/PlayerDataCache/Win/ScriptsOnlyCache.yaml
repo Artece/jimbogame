@@ -6,18 +6,19 @@ ScriptsOnlyBuild:
     - UnityEditor.U2D.Animation.BoneGizmo
     Unity.2D.IK.Editor.dll:
     - UnityEditor.U2D.IK.IKEditorManager
+    - UnityEditor.U2D.IK.IKGizmos
     Unity.2D.IK.Runtime.dll:
     - UnityEditor.U2D.IK.IKEditorManagerHelper
     Unity.2D.Tilemap.Editor.dll:
     - UnityEditor.Tilemaps.GridPaintingState
+    - UnityEditor.Tilemaps.GridPaletteBrushes
+    - UnityEditor.Tilemaps.GridPalettes
     - UnityEditor.Tilemaps.SceneViewGridManager
     - UnityEditor.Tilemaps.SceneViewOpenTilePaletteHelper
     - UnityEditor.Tilemaps.TileDragAndDropManager
     - UnityEditor.Tilemaps.TilemapPrefabStageHelper
     Unity.Rider.Editor.dll:
     - Packages.Rider.Editor.UnitTesting.CallbackData
-    Unity.Timeline.Editor.dll:
-    - TimelineProjectSettings
     UnityEditor.TestRunner.dll:
     - UnityEditor.TestTools.TestRunner.Api.CallbacksHolder
     - UnityEditor.TestTools.TestRunner.TestListCacheData
@@ -49,8 +50,6 @@ ScriptsOnlyBuild:
       Script: {instanceID: 0}
     - Class: 48
       Script: {instanceID: 0}
-    - Class: 49
-      Script: {instanceID: 0}
     - Class: 81
       Script: {instanceID: 0}
     - Class: 83
@@ -60,31 +59,31 @@ ScriptsOnlyBuild:
     - Class: 104
       Script: {instanceID: 0}
     - Class: 114
-      Script: {instanceID: 1490}
+      Script: {instanceID: 1496}
     - Class: 114
-      Script: {instanceID: 1614}
+      Script: {instanceID: 1620}
     - Class: 114
-      Script: {instanceID: 1670}
+      Script: {instanceID: 1676}
     - Class: 114
-      Script: {instanceID: 2076}
+      Script: {instanceID: 2082}
     - Class: 114
-      Script: {instanceID: 2230}
+      Script: {instanceID: 2236}
     - Class: 114
-      Script: {instanceID: 2446}
+      Script: {instanceID: 2452}
     - Class: 114
-      Script: {instanceID: 2592}
+      Script: {instanceID: 2598}
     - Class: 114
-      Script: {instanceID: 2762}
+      Script: {instanceID: 2768}
     - Class: 114
-      Script: {instanceID: 2972}
+      Script: {instanceID: 2978}
     - Class: 114
-      Script: {instanceID: 3074}
+      Script: {instanceID: 3080}
     - Class: 114
-      Script: {instanceID: 3410}
+      Script: {instanceID: 3416}
     - Class: 114
-      Script: {instanceID: 3644}
+      Script: {instanceID: 3650}
     - Class: 114
-      Script: {instanceID: 4956}
+      Script: {instanceID: 4962}
     - Class: 115
       Script: {instanceID: 0}
     - Class: 128
@@ -104,8 +103,6 @@ ScriptsOnlyBuild:
     - Class: 225
       Script: {instanceID: 0}
     - Class: 328
-      Script: {instanceID: 0}
-    - Class: 329
       Script: {instanceID: 0}
   scriptHashData:
   - hash:
@@ -452,7 +449,7 @@ ScriptsOnlyBuild:
     className: AudioPlayableAsset
   - hash:
       serializedVersion: 2
-      Hash: 11e066d904ec8033726d238865d88705
+      Hash: a22692f168b4a96d26f548f043f308c7
     assemblyName: Assembly-CSharp.dll
     namespaceName: 
     className: StartupController

@@ -11,13 +11,11 @@ public class StartupController : MonoBehaviour
     // easily modifiable parameters for animations
     public float introDuration = 2f, pressAnyKeyFlashRate = 2f, menuAnimationBackgroundDuration = 5f, menuAnimationTransitionDuration = 1f;
     
-    public Sprite pressAnyKeyScreen;
-    
     // not implemented yet, list of scenarios
     private List<DirectoryInfo> scenarios;
     
     // shader background panel, video player panel, menu background panel, studio logo panel, scenario select panel, game settings panel
-    private GameObject sbp, vpp, mbp, slp, ssp, gsp;
+    private GameObject sbp, vpp, mbp, pkp, ssp, gsp;
     
     // background panel 0 and 1, for menu screen
     private Image bp0, bp1;
@@ -68,32 +66,34 @@ public class StartupController : MonoBehaviour
         // handy variables
         float hdur = introDuration * .5f, qdur = introDuration * .25f, hpi = 1.57f;
 
-        slp.gameObject.SetActive(true);
-
+        pkp.gameObject.SetActive(true);
         // get the "press any key" text and the logo image, and set both to be transparent so we can fade in
-        var text = slp.GetComponentInChildren<Text>();
-        // get the image of slp
-        var sli = slp.GetComponent<Image>();
+        var text = pkp.GetComponentInChildren<Text>();
+        // get the image of pkp
+        var pki = pkp.GetComponent<Image>();
         text.CrossFadeAlpha(0f, 0f, true);
-        sli.CrossFadeAlpha(0f, 0f, true);
+        pki.CrossFadeAlpha(0f, 0f, true);
 
         // wait for a bit (smoother looking during testing)
         yield return new WaitForSeconds(qdur);
 
+        /*
 
         // fade the image in
-        sli.CrossFadeAlpha(1f, qdur, false);
+        pki.CrossFadeAlpha(1f, qdur, false);
         // wait for fade to finish
         yield return new WaitForSeconds(qdur);
         // then fade out and wait
-        sli.CrossFadeAlpha(0f, qdur, false);
+        pki.CrossFadeAlpha(0f, qdur, false);
         yield return new WaitForSeconds(qdur);
 
-        // change the sprite (the texture basically) of sli to the press any key screen
-        sli.sprite = pressAnyKeyScreen;
+        //// change the sprite (the texture basically) of pki to the press any key screen
+        pki.sprite = pressAnyKeyScreen;
         // then fade it back in along with the text
+        */
+
         text.CrossFadeAlpha(1f, qdur, false);
-        sli.CrossFadeAlpha(1f, qdur, false);
+        pki.CrossFadeAlpha(1f, qdur, false);
 
         yield return new WaitForSeconds(qdur);
 
@@ -101,7 +101,7 @@ public class StartupController : MonoBehaviour
 
         // slowly pulse the text until a kep is pressed
         // first get the sin offset by taking the current time times the flash rate and adding half pi
-        var sinOffset = hpi + Time.time*pressAnyKeyFlashRate;
+        var sinOffset = hpi + Time.time * pressAnyKeyFlashRate;
         // then loop until we get an input
         while (!Input.anyKey)
         {
@@ -123,11 +123,11 @@ public class StartupController : MonoBehaviour
         yield return new WaitForSeconds(0.05f);
 
         // then fade out press any key screen
-        sli.CrossFadeAlpha(0f, qdur, false);
+        pki.CrossFadeAlpha(0f, qdur, false);
         yield return new WaitForSeconds(qdur);
 
         // deactivate the logo panel and switch to the menu view
-        slp.SetActive(false);
+        pkp.SetActive(false);
         mbp.SetActive(true);
 
         // get the canvas group of menu background panel
@@ -144,11 +144,26 @@ public class StartupController : MonoBehaviour
         StartCoroutine(MenuAnimation());
     }
     
+    private Sprite LoadSprite(string path)
+    {
+        byte[] d = File.ReadAllBytes(path);
+        Texture2D tex = new Texture2D(0, 0);
+        tex.LoadImage(d);
+        var sprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2());
+        return sprite;
+    }
+    
     // not implemented
     public void ParseScenarios()
     {
+        /*
+         * Unity seems to not package the directory structure when building for a stanalone exe (with current settings at least).
+         * This leads to it not loading assets properly as well as raising questions about how to differentiate different scenarios.
+         * So may need to rethink these hardcoded paths and directory parsing, perhaps use JSON representation of hierarchy instead?
+         */
+
         // get a list of all the scenarios in the scenarios folder
-        DirectoryInfo dir = new DirectoryInfo("./Assets/Resources/Scenarios");
+        DirectoryInfo dir = new DirectoryInfo(Application.streamingAssetsPath + "/Scenarios");
         scenarios = new List<DirectoryInfo>(dir.GetDirectories());
         // get a list of the buttons on SSP
         var buttons = ssp.transform.GetComponentsInChildren<Button>();
@@ -160,9 +175,12 @@ public class StartupController : MonoBehaviour
             // make the path by combining the scenarios folder, with the scenario folder in question, with the filename
             // this has to be relative to the resources folder because Resources.Load will only look in there
             // Resources.Load also hates file extensions for some inexplicable reason, so beware
-            var path = "Scenarios/" + scenarios[i].Name + "/bg";
+            var path = Application.streamingAssetsPath + "/Scenarios/" + scenarios[i].Name + "/bg.png";
+
             // actually load it
-            var sprite = Resources.Load<Sprite>(path);
+            var sprite = LoadSprite(path);
+            //var sprite = Resources.Load<Sprite>(path);
+            
             // and assign
             img.sprite = sprite;
             txt.text = scenarios[i].Name;
@@ -171,6 +189,7 @@ public class StartupController : MonoBehaviour
         for (int i = Mathf.Min(buttons.Length, scenarios.Count); i < Mathf.Max(buttons.Length, scenarios.Count) - 1; ++i)
         {
             buttons[i + 1].gameObject.GetComponent<Image>().CrossFadeAlpha(0f, 0f, true);
+            buttons[i + 1].interactable = false;
         }
     }
 
@@ -179,43 +198,58 @@ public class StartupController : MonoBehaviour
         var index = int.Parse(btn.gameObject.name.Substring(2,1));
         var scName = scenarios[index].Name;
         var vpc = vpp.GetComponent<VideoPlayer>();
-        var clip = Resources.Load<VideoClip>("Scenarios/" + scName + "/pre");
-        //vpc.url = "Assets/Resources/Scenarios/" + scName + "/pre.avi";
+        //var clip = Resources.Load<VideoClip>("StreamingAssets/Scenarios/" + scName + "/pre");
+        vpc.url = Application.streamingAssetsPath + "/Scenarios/" + scName + "/pre.avi";
         vpp.SetActive(true);
-        vpc.clip = clip;
+        //vpc.clip = clip;
         //vpc.waitForFirstFrame = true;
         //vpc.skipOnDrop = true;
         //vpc.Stop();
         //vpc.time = 0f;
         //vpc.Play();
         List<Graphic> gfx = new List<Graphic>(vpp.GetComponentsInChildren<Graphic>());
-        for (int i = 0; i < gfx.Count; ++i)
-        {
-            var g = gfx[i];
-            if (g.GetType() == typeof(RawImage))
-            {
-                gfx.Remove(g);
-            }
-        }
+        RawImage ri = vpp.GetComponent<RawImage>();
         for (int i = 0; i < gfx.Count; ++i)
         {
             var g = gfx[i];
             g.CrossFadeAlpha(0f, 0f, true);
+            var gb = g.gameObject.GetComponent<Button>();
+            if (gb != null)
+            {
+                gb.interactable = false;
+            }
         }
-        StartCoroutine(AwaitAfterPreAvi(vpc, gfx));
+        gfx.Remove(ri);
+        sbp.SetActive(false);
+        StartCoroutine(AwaitAfterPreAvi(vpc, gfx, ri));
     }
 
-    private IEnumerator AwaitAfterPreAvi(VideoPlayer vpc, List<Graphic> gfx)
+    private IEnumerator AwaitAfterPreAvi(VideoPlayer vpc, List<Graphic> gfx, RawImage ri)
     {
         //vpc.frame = 0;
         //yield return new WaitForSeconds(5f);
+        /* 
+         * unity video player is kinda bad, seems to always do this really annoying behaviour
+         * where it doesn't reset to the first frame before drawing so you get a static image of the last frame of the video for like ~5frames or something, 
+         * then a really jarring jump from the last frame to the first when it actually starts playing
+         * 
+         * After hours of experimentation, the best fix I've found for this so far is just to fade in the image while this jump is occuring so it doesn't look bad lol
+         * you can see some of the things I tried commented out
+         */
         vpc.Play();
+        ri.CrossFadeAlpha(1f, .5f, false);
         yield return new WaitUntil(() => vpc.isPlaying);
         yield return new WaitUntil(() => !vpc.isPlaying);
         vpc.Stop();
+        vpc.clip = null;
         foreach (var g in gfx)
         {
             g.CrossFadeAlpha(1f, 1f, false);
+            var gb = g.gameObject.GetComponent<Button>();
+            if (gb != null)
+            {
+                gb.interactable = true;
+            }
         }
     }
 
@@ -245,7 +279,7 @@ public class StartupController : MonoBehaviour
         sbp = transform.Find("SBP").gameObject;
         vpp = transform.Find("VPP").gameObject;
         mbp = transform.Find("MBP").gameObject;
-        slp = transform.Find("SLP").gameObject;
+        pkp = transform.Find("PKP").gameObject;
         ssp = transform.Find("SSP").gameObject;
         gsp = transform.Find("GSP").gameObject;
         bp0 = mbp.transform.Find("BP0").gameObject.GetComponent<Image>();
