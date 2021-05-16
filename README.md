@@ -7,19 +7,19 @@ Just writing this as a quick explanation to the project to help people work on i
 
 Not sure how much experience with Unity everybody has, so will try to explain things as I go; I also feel like I should preface that I'm not a Unity super user, I've made some things before and they turned out well, but it's been a while so I'm a bit rusty, also another warning my capitalisation and notation isn't entirely consistent all the way through this doc, I had no idea how exhausting it'd all be to explain erring on the side of caution, so went over multiple times hence some inconsistency.
 
+Here's a brief video demo of the latest build:
+
+https://user-images.githubusercontent.com/25913592/118380715-cd31f280-b5db-11eb-87c7-222f9e7282e7.mp4
+
 
 Anyhow, to open the project in Unity:
-1. Make sure you've got the correct version (currently the latest version: 2020.3.7f1); I recommend registering an account and then getting a personal use license (free unless you make >$100K from your projects), then installing Unity hub to install the latest version with the default settings. Although if you're a developer on intend to tinker with the code at all then I recommend you make sure the option to install Microsoft Visual Studio Community edition 2019 is ticked (can't remember if it's default), it's also free but you'll need a Microsoft account for it, however I understand the previous project was built in VS so this is probably redundant info.
+1. Make sure you've got the correct version (currently version: 2020.3.7f1, plan to update to latest soon); I recommend registering an account and then getting a personal use license (free unless you make >$100K from your projects), then installing Unity hub to install the latest version with the default settings. Although if you're a developer on intend to tinker with the code at all then I recommend you make sure the option to install Microsoft Visual Studio Community edition 2019 is ticked (can't remember if it's default), it's also free but you'll need a Microsoft account for it, however I understand the previous project was built in VS so this is probably redundant info.
 2. Clone the project from this repo to your pc
 3. Go to the project root folder and then go to Assets/Scenes/ and open SampleScene.unity
 
-
-
 This should hopefully open the project in Unity and list it on the projects tab of Unity hub; you should then hopefully be presented with a screen resembling this:
 
-![1](https://user-images.githubusercontent.com/25913592/117655896-926d2c00-b18f-11eb-9358-8bd08a4f86f4.PNG)
-
-
+![1](https://user-images.githubusercontent.com/25913592/118378940-00ba5000-b5cf-11eb-9932-2c8d34d4a2df.png)
 
 In the top left, you can see the hierarchy panel, this lists the objects that are in the scene* that is currently loaded.
 
@@ -27,13 +27,14 @@ In the center, you can see the scene itself, which doesn't really look like much
 
 Down the righthand side, you can see the inspector, this will show details of selected objects or assets and allow you to change parameters.
 
-Along the bottom, you can see the project panel, and then in another tab the console.
+Along the bottom, you can see the console panel, and then in another tab the project panel.
 
 The project panel will allow you to explore the file structure of the project and do various things from within Unity.
 
-The console displays build errors and debug messages (for devs, Debug.Log() is how you output to this mainly).
+The console displays build errors and debug messages.
 
-TLDR for artists: To import assets of any kind (images, video, audio, etc.) just drag and drop into the project panel, the inspector will let you tweak things further. Also you might wanna hit "File->Save Project", I won't lie in that I don't really know if you need to, but it assuages my paranoia.
+**TLDR for artists:**
+To import assets of any kind (images, video, audio, etc.) just drag and drop into the project panel, the inspector will let you tweak things further. Also you might wanna hit "File->Save Project", I won't lie in that I don't really know if you need to, but it assuages my paranoia.
 
 *\*scenes are what Unity uses to encapsulate the idea of what is currently loaded and being displayed, think like a level in an old-school game; it's possible to have multiple scenes in a project and switch between them, but currently this project only has one. Any changes to the scene you must do "File->Save" or hit Ctrl-s*
 
@@ -45,43 +46,76 @@ Our scene SampleScene.unity is in the Scenes/ folder.
 Textures contains some really quick placeholder assets I made to more or less emulate what I saw in the WPF project.
 VideoPlayer contains some random clips from discord to serve as placeholders, as well as an internal Unity object (VideoTexutre.renderTexture) that Unity uses for playing videos.
 
-Artists, feel free of course to replace any of my scuffed placeholder assets.
+To play the scene, you just need to hit the play button at the top in the center of the main window of Unity, it should then automatically switch to the game tab allowing interaction. It's pretty basic as you've probably seen from the original video:
 
+https://user-images.githubusercontent.com/25913592/117666868-35c43e00-b19c-11eb-8f4c-00fbd8f41bdb.mp4
 If we go to the hierarchy panel and expand some of the dropdowns on the objects inside, then select the Canvas, we should see something like this:
 
-![2](https://user-images.githubusercontent.com/25913592/117659672-26d98d80-b194-11eb-9c51-3d5b4363a044.PNG)
+![2](https://user-images.githubusercontent.com/25913592/118379046-b6859e80-b5cf-11eb-84a0-010146a45cc5.PNG)
 
 In the inspector, we can see multiple things separated into sections. **These are known as components in Unity; each object can have lots of components attached to it.** At the bottom of this list, we can see a Script component, connected to the file Assets/Scripts/StartupController.cs.
 
 **Just a side note, but almost every object in Unity will have "GameObject" and "Transform" or "Rect Transform" components.**
 
-If you go to the project panel and navigate to Assets/Scripts/ then open StartupController.cs, it should open in VisualStudio like so:
+If you go to the project panel and navigate to Assets/Scripts/ then open StartupController.cs, it should open in VisualStudio.
 
-![3](https://user-images.githubusercontent.com/25913592/117661463-51c4e100-b196-11eb-84c2-94484802744c.PNG)
+By the way, if you make any changes to the code, Unity will automatically compile it and warn you of errors when you refocus editor window.
 
-If you scroll down to the bottom of the file, you'll find our point of entry: the function "Start" on line 81. In Unity most if not all scripts derive from the "MonoBehaviour" class, wherein "Start" is always run once when first instantiated, and then "Update" is run every frame that the engine processes/renders.
+If you scroll down to the bottom of the file, you'll find our point of entry: the function "Start". In Unity most if not all scripts derive from the "MonoBehaviour" class, wherein "Start" is always run once when first instantiated, and then "Update" is run every frame that the engine processes/renders.
 
     // Start is called before the first frame update
     void Start()
     {
-        //canvas = GetComponent<Canvas>();
-        vppanel = transform.Find("video player panel").gameObject;
-        mbgpanel = transform.Find("menu bg panel").gameObject;
-        logopanel = transform.Find("logo panel").gameObject;
-        StartCoroutine(LogoAnimation(logoDur));
-        ParseVids();
-        NextVid();
+        // grab references to important objects
+        sbp = transform.Find("SBP").gameObject;
+        vpp = transform.Find("VPP").gameObject;
+        mbp = transform.Find("MBP").gameObject;
+        pkp = transform.Find("PKP").gameObject;
+        ssp = transform.Find("SSP").gameObject;
+        gsp = transform.Find("GSP").gameObject;
+        bp0 = mbp.transform.Find("BP0").gameObject.GetComponent<Image>();
+        bp1 = mbp.transform.Find("BP1").gameObject.GetComponent<Image>();
+        // set alpha of background panel 0 to be 0 so that it doesn't bleed through before animation starts
+        bp0.CrossFadeAlpha(0f, 0f, true);
+        StartCoroutine(IntroAnimation());
     }
 
-In our start function, you can see first of all that we assign some variables: vppanel, mbgpanel, etc. (apologies for terrible variable names). These represent the video player, menu background, and logo child objects that you can see under the canvas object in the hierarchy. Essentially we're just getting references to them for later.
+In our start function, you can see first of all that we assign some variables: sbp, vpp, etc. These are references to the various UI panels we can see in the hierarchy with corresponding names.
 
-We then initiate the logo animation, this is implemented as a coroutine currently which I'll go into later. Then we parse the assets folder for video clips (this would be where I imagine the scenario json parsing would be inserted), I then call "NextVid" to load the first video clip into the player.
+These panels and their functions are as follows:
 
-By the way, if you make any changes to the code, Unity will automatically compile it and warn you of errors when you switch back to the main Unity window. To play the scene, you just need to hit the play button at the top in the center of the main window of Unity, it should then automatically switch to the game tab allowing interaction. It's pretty basic as you've probably seen from the video:
+sbp: As in "Shader Background Panel", this is the panel that the grid shader is rendered to, it sits at the top of the hierarchy because the hierarchy doubles as the occulsion order for 2D elements; thus it's at the top so that it's rendered first in order to be benhind the others.
 
-https://user-images.githubusercontent.com/25913592/117666868-35c43e00-b19c-11eb-8f4c-00fbd8f41bdb.mp4
+*There's almost no code that references sbp, as all we really ever do with it is turn it on or off, so instead as a quick aside I'll explain the panel structure as an example of what the workflow can look like.*
+The panel consists of a game object that is a child of the canvas, it has a rect transform as all UI elements have and canvas renderer (so unity knows to draw it). I created it by right-clicking on the canvas in the hierarchy and selecting "Create->UI->Panel", which sets up a nice preconfigured object for us to use. I then removed the "Image" component and added a "RawImage", as I read that "Image" components are intended for handling sprites more so, whereas "RawImage" is recommended for shaders and video players etc. In the project panel I then when to the shaders folder, and in the same way as before selected "Create", only this time, "Create->Shader->Image Effect Shader". I then opened it in VisualStudio and ported the shader from the WPF version, then created a material to which the shader is applied, which is in turn applied to the "RawImage", as you can see in the image below. This is generally how I tend to work with unity I find, lay down the broad strokes in the editor and then fill in the finer details using code, although there are a lot of editor-based features which are cool and useful I've never specialsed to the degree that I've felt the need to learn them.
 
-The first thing we see in the video is the logo animation, which is hardcoded animation that we saw get called as a coroutine in the start function. Coroutines are basically analogous to starting a new thread, or a background process, if you're familiar with those terms. It allows you to initiate something which is going to occur over a larger span of time without blocking the rest of the code. In Unity, you can call StartCoroutine on any function that returns an IEnumerator, in our case this is the "LogoAnimation" function near the top of the file:
+![3](https://user-images.githubusercontent.com/25913592/118379751-bd62e000-b5d4-11eb-9b2a-f6b7abe4da0c.PNG)
+*\*I figure it's better to have more pictures in the readme, as some people, like our very own Jimbonius, are very visual learners*
+
+
+vbp: As in "Video Player Panel", this is the panel that the video player is rendered to, it effectively acts as the main "game" screen too for this reason. It has a button to go back to the scenario selcet screen (ssp) whence we entered, and also the four "Game Choice" buttons which will in the end be used by the player to make decisions to progress the game via branching and modifying the score, which will in effect just alter the video clip and button text practically speaking.
+
+![4](https://user-images.githubusercontent.com/25913592/118380592-dd959d80-b5da-11eb-88cb-20925a96f33f.PNG)
+
+ssp: As in "Scenario Select Panel", this is the panel where parsed scenarios are laid out with their thumbnails, titles and descriptions etc. Each scenario thumbnail is a button which enters the scenario by taking us to the video player (vbp) and there is also a back button to return to the menu (mbp).
+
+![5](https://user-images.githubusercontent.com/25913592/118380601-f43bf480-b5da-11eb-8809-b7854700c14f.PNG)
+
+mbp: As in "Menu Background Panel", this is the main menu, it has two background panels: bp0 and bp1, which alternate every 5 seconds or so. It has the game logo and three buttons: Start game, Settings and Quit, which all do what you might expect: Start game takes you to the scenario select screen (ssp), Settings takes you to the settings (gsp) and Quit quits the game entirely.
+
+![6](https://user-images.githubusercontent.com/25913592/118380613-09b11e80-b5db-11eb-82c5-de3390f0f1ee.PNG)
+
+pkp: As in "Press any Key Panel", this is the first thing we see when the game is fully loaded in after the unity splash screens, it used to play host to the logo animation as well but I discovered there was a built-in way to display this as part of the splash screens. It has some text which flashes when we press a key.
+
+![7](https://user-images.githubusercontent.com/25913592/118380628-19306780-b5db-11eb-8579-4bef29afb1e0.PNG)
+
+gsp: As in "Game Settings Panel", this is where the settings will go, it's linked to by the settings button in mbp, and you can return there with the back button.
+
+![8](https://user-images.githubusercontent.com/25913592/118380636-2a797400-b5db-11eb-9de1-6c899273d228.PNG)
+
+----------------------------------------------------------------------README FROM HERE DOWN NOT UP TO DATE----------------------------------------------------------------------
+
+If we switch back to Visual Studio, you can see that after getting the panels, the first thing we do is initiate the intro animation, which is implemented as a coroutine. Coroutines are basically analogous to starting a new thread, or a background process, if you're familiar with those terms. It allows you to initiate something which is going to occur over a larger span of time (much longer than a single frame for animations) without blocking the rest of the code. In Unity, you can call StartCoroutine on any function that returns an IEnumerator, in our case this is the "IntroAnimation" function near the top of the file:
 
     private IEnumerator LogoAnimation(float dur)
     {
