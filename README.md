@@ -92,8 +92,7 @@ The panel consists of a game object that is a child of the canvas, it has a rect
 ![3](https://user-images.githubusercontent.com/25913592/118379751-bd62e000-b5d4-11eb-9b2a-f6b7abe4da0c.PNG)
 *\*I figure it's better to have more pictures in the readme, as some people, like our very own Jimbonius, are very visual learners*
 
-
-vbp: As in "Video Player Panel", this is the panel that the video player is rendered to, it effectively acts as the main "game" screen too for this reason. It has a button to go back to the scenario selcet screen (ssp) whence we entered, and also the four "Game Choice" buttons which will in the end be used by the player to make decisions to progress the game via branching and modifying the score, which will in effect just alter the video clip and button text practically speaking.
+vbp: As in "Video Player Panel", this is the panel that the video player is rendered to, it effectively acts as the main "game" screen too for this reason. It has a button to go back to the scenario selcet screen (ssp) whence we entered, and also the four "Game Choice" buttons which will in the end be used by the player to make decisions to progress the game via branching and modifying the score, which will in effect just alter the video clip and button text practically speaking. Just as an aside on buttons, clicking any button will activate the "OnClick" method for that button, which is a feature of Unity's button component that allows you to assign public methods from any other object(s) in the scene that will be called when the button is clicked. The button objects also each have their own child with a Text component, labelling the buttons; these are in child objects because Unity only permits one "graphic" component per object.
 
 ![4](https://user-images.githubusercontent.com/25913592/118380592-dd959d80-b5da-11eb-88cb-20925a96f33f.PNG)
 
@@ -113,95 +112,245 @@ gsp: As in "Game Settings Panel", this is where the settings will go, it's linke
 
 ![8](https://user-images.githubusercontent.com/25913592/118380636-2a797400-b5db-11eb-9de1-6c899273d228.PNG)
 
-----------------------------------------------------------------------README FROM HERE DOWN NOT UP TO DATE----------------------------------------------------------------------
-
 If we switch back to Visual Studio, you can see that after getting the panels, the first thing we do is initiate the intro animation, which is implemented as a coroutine. Coroutines are basically analogous to starting a new thread, or a background process, if you're familiar with those terms. It allows you to initiate something which is going to occur over a larger span of time (much longer than a single frame for animations) without blocking the rest of the code. In Unity, you can call StartCoroutine on any function that returns an IEnumerator, in our case this is the "IntroAnimation" function near the top of the file:
 
-    private IEnumerator LogoAnimation(float dur)
+    private IEnumerator IntroAnimation()
     {
-        yield return new WaitForSeconds(dur/4);
+        float qdur = introDuration * .25f;
+        
+Essentially we set pkp to be active, then set it and it's child text to be transparent so we can fade it in, we wait for a bit then start the fade. Once the fade in is done, we activate sbp underneath pkp, so when we fade out pkp the shader is running. This is beacuse the reason it's not running in the first place is it looks a bit weird to fade in to pkp when you can already see the shader:
 
-        CanvasGroup lpc = logopanel.GetComponent<CanvasGroup>();
-        float t = 0f;
+        // get the "press any key" text and the pkp image, and set both to be forsenCD so we can fade in
+        pkp.gameObject.SetActive(true);
+        var text = pkp.GetComponentInChildren<Text>();
+        var pki = pkp.GetComponent<Image>();
+        text.CrossFadeAlpha(0f, 0f, true);
+        pki.CrossFadeAlpha(0f, 0f, true);
 
-        while (t < dur)
+Now, in Unity when using Coroutines, using the "yield" and "return" keywords will make the function exit where it was, allowing Unity to continue on with the rest of whatever it has to do, only to resume where we left off at some later point. In this case you can see that we return an instance of the "WaitForSeconds" class, which tells Unity to not resume our code until that many Seconds have elapsed; however, there are other options such as waiting until a condition is true and so on:
+
+        // wait for a bit (smoother looking during testing)
+        yield return new WaitForSeconds(qdur);
+
+        text.CrossFadeAlpha(1f, qdur, false);
+        pki.CrossFadeAlpha(1f, qdur, false);
+
+        yield return new WaitForSeconds(qdur);
+
+        sbp.SetActive(true);
+        
+We then enter a loop where we slowly pulse the text in and out until the player hits a key, whereupon we flash the text three times rapily:
+
+        // slowly pulse the text until a kep is pressed
+        // first get the sin offset by taking the current time times the flash rate and adding half pi
+        var sinOffset = 1.57f + Time.time * pressAnyKeyFlashRate;
+        // then loop until we get an input
+        while (!Input.anyKey)
         {
-            t += Time.deltaTime;
-            lpc.alpha = Mathf.Sin(3.14f * t / dur);
+            // fade the text to the absolute sin of the rate-scaled time value with the offset
+            text.CrossFadeAlpha(Mathf.Abs(Mathf.Sin((Time.time * pressAnyKeyFlashRate) - sinOffset)), Time.deltaTime, false);
+            // don't wait, we want to come back next frame or occasionally you'll miss an input which feels scuffed
             yield return null;
         }
-        
-        logopanel.SetActive(false);
 
-        mbgpanel.SetActive(true);
-        CanvasGroup mpc = mbgpanel.GetComponent<CanvasGroup>();
-        
-        t = 0f;
-        dur /= 2;
-        while (t < dur)
+        // after user input flash the text three times rapidly before fading out completely
+        for (int i = 0; i < 3; i++)
         {
-            t += Time.deltaTime;
-            mpc.alpha = Mathf.Sin(1.57f * t / dur);
-            yield return null;
+            text.CrossFadeAlpha(0f, 0.05f, false);
+            yield return new WaitForSeconds(0.05f);
+            text.CrossFadeAlpha(1f, 0.05f, false);
+            yield return new WaitForSeconds(0.05f);
+        }
+        
+Before fading out pkp:
+        
+        text.CrossFadeAlpha(0f, 0.05f, false);
+        yield return new WaitForSeconds(0.05f);
+
+        // then fade out press any key screen
+        pki.CrossFadeAlpha(0f, qdur, false);
+
+        // set mbp to active
+        mbp.SetActive(true);
+        
+Then fading in mbp by making it transparent, waiting then starting the fade in:
+
+        var gfx = mbp.GetComponentsInChildren<Graphic>();
+        foreach (Graphic g in gfx)
+        {
+            g.CrossFadeAlpha(0f, 0f, true);
+        }
+        yield return new WaitForSeconds(qdur);
+
+        // deactivate pkp
+        pkp.SetActive(false);
+        
+        bp0 = mbp.transform.Find("BP0").gameObject.GetComponent<Image>();
+        bp1 = mbp.transform.Find("BP1").gameObject.GetComponent<Image>();
+
+        foreach (Graphic g in gfx)
+        {
+            g.CrossFadeAlpha(1f, 1f, false);
+        }
+Except BP0, which we want to keep transparent as we only want to show one menu background image to start with:
+
+        bp0.CrossFadeAlpha(0f, 0f, true);
+        
+We then fork of the two coroutines that make up the menu animation:
+
+        // then enter menu animation
+        IEnumerator clock;
+        StartCoroutine(clock = maClock());
+        StartCoroutine(maCatch(clock, true));
+    }
+
+It might seem like a bit much to implement a background swapper as two parallel coroutines, but it's just what's convenient given the parameters of the problem. Essentially, we want to fade between the two backgrounds, and it'd be nice if we could easily regulate the timing and behaviour:
+
+So we have one coroutine which very simply toggles the state of a global boolean maTick every time menuAnimationBackgroundDuration elapses, then fades between the panels:
+
+    private IEnumerator maClock()
+    {
+        while (true)
+        {
+
+We wait for the time to fade:
+
+            yield return new WaitForSeconds(menuAnimationBackgroundDuration);
+
+Then toggle the state and fade accordingly:
+
+            maTick = !maTick;
+            var bp0a = (maTick) ? 1f : 0f;
+            var bp1a = (maTick) ? 0f : 1f;
+            bp0.CrossFadeAlpha(bp0a, menuAnimationTransitionDuration, false);
+            bp1.CrossFadeAlpha(bp1a, menuAnimationTransitionDuration, false);
         }
     }
 
-Now, in Unity when using Coroutines, using the "yield" and "return" keywords will make the function exit where it was, allowing Unity to continue on with the rest of whatever it has to do, only to resume where we left off at some later point. In this case you can see that we return an instance of the "WaitForSeconds" class, which tells Unity to not resume our code until that many Seconds have elapsed, however there are other options such as waiting until a condition is true etc.
+We also have a coroutine which catches when we navigate away from the menu screen in order to regulate resulting irregularites:
 
-We then grab a reference to the "CanvasGroup" component attached to the logo panel object, this is a Unity UI component that allows child objects to inherit their parents UI properties, which is useful for altering entire of groups of UI objects at once (as we're about to). We then initialise t to 0, representing the passage of time or the progress of the animation or however you want to think of it.
+    private bool maTick = false;
 
-We then enter a loop, modifiying the transparency of the logo panel and yielding to allow the game to continue, by returning null we resume the next frame. This has the effect of gradually fading in the logo and then fading it out again, as we use the Sin of t * Pi / the animation duration i.e. 0 -> 1 -> 0.
-
-Once this first loop is complete, we deactivate the logo panel as we no longer need it and so don't need to process it, then activate the menu background panel and grab a reference to its CanvasGroup.
-
-We then repeat the same process only half way this time, hence diving the duration by two and using half of Pi, allowing the menu background panel to fade in nicely and then stay there.
-
-The menu panel currently has four buttons to emulate the look of the WPF project, but only the top and bottom buttons have any function currently; the top initiates the "game" and the bottom will quit.
-
-Clicking any button will activate the "OnClick" method for that button, which is a feature of Unity's button component that allows you to assign public methods from any other object(s) in the scene that will be called when the button is clicked. In the top button's case, this will deactivate the menu background panel and activate the videoplayer panel. I didn't bother animating this as I felt that'd been shown already so it's just a hard transition right now by swapping which panels are active.
-
-This panel also has buttons: a back button to return to the menu screen, and four buttons emulating the game controls / the choice menu. At present, only the top left of these buttons does anything, which is just call the "Nextvid" function, rotating which video is playing.
-
-The functions "ParseVids" and "NextVid" shouldn't be too hard to figure out but I'll just briefly go through them:
-
-    private void ParseVids()
+    private IEnumerator maCatch(IEnumerator clock, bool resetClock)
     {
-        DirectoryInfo dir = new DirectoryInfo("./Assets/VideoPlayer");
-        var fia = dir.GetFiles("*.m4v");
-        videoList = new Queue<FileInfo>();
-        foreach (FileInfo fi in fia)
+        // this function only exists to prevent weird behaviour when transitioning back to the menu page
+        while (true)
         {
-            videoList.Enqueue(fi);
+            // basically we detect if the menu page went inactive then if we were due to show the alternative background we set it
+            yield return new WaitWhile(() => mbp.activeSelf);
+            
+When mbp becomes inactive we restore the transparency to what it should be, then if we care about the clock we wait until mbp is active again to restart it:
+
+            var bp0a = (maTick) ? 1f : 0f;
+            var bp1a = (maTick) ? 0f : 1f;
+            bp0.CrossFadeAlpha(bp0a, 0f, true);
+            bp1.CrossFadeAlpha(bp1a, 0f, true);
+            if (resetClock) StopCoroutine(clock);
+            yield return new WaitUntil(() => mbp.activeSelf);
+            if (resetClock) StartCoroutine(clock = maClock());
         }
     }
 
-    public void NextVid()
+The following function is used to load sprites from files. This is because in order to preserve the directory structure of the scenarios folder, we need to put it in a special purrpose folder called "StreamingAssets". This unfortunately means we can't put in another special purpose folder called "Resources", which would allow us to use Resources.Load, so we have to write our own.
+
+    private Sprite LoadSprite(string path)
     {
-        VideoPlayer vp = vppanel.GetComponent<VideoPlayer>();
-        var fi = videoList.Dequeue();
-        videoList.Enqueue(fi);
-        vp.url = fi.FullName;
+        byte[] d = File.ReadAllBytes(path);
+        Texture2D tex = new Texture2D(0, 0);
+        tex.LoadImage(d);
+        var sprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2());
+        return sprite;
+    }
+    
+To parse the scenarios, we get a list of subfolders in the scenarios directory, then load bg.png as a sprite to use in ssp.
+    
+    // not implemented
+    public void ParseScenarios()
+    {
+        // get a list of all the scenarios in the scenarios folder
+        DirectoryInfo dir = new DirectoryInfo(Application.streamingAssetsPath + "/Scenarios");
+        scenarios = new List<DirectoryInfo>(dir.GetDirectories());
+        // get a list of the buttons on SSP
+        var buttons = ssp.transform.GetComponentsInChildren<Button>();
+        for (int i = 0; i < Mathf.Min(buttons.Length, scenarios.Count); ++i)
+        {
+            // start on the 1st button as 0th is back, and get the image
+            var img = buttons[i + 1].gameObject.GetComponent<Image>();
+            var txt = buttons[i + 1].gameObject.GetComponentInChildren<Text>();
+            // make the path by combining the scenarios folder, with the scenario folder in question, with the filename
+            // this has to be relative to the resources folder because Resources.Load will only look in there
+            // Resources.Load also hates file extensions for some inexplicable reason, so beware
+            var path = Application.streamingAssetsPath + "/Scenarios/" + scenarios[i].Name + "/bg.png";
+
+            // actually load it
+            var sprite = LoadSprite(path);
+            //var sprite = Resources.Load<Sprite>(path);
+            
+            // and assign
+            img.sprite = sprite;
+            txt.text = scenarios[i].Name;
+        }
+        // go through and make the rest transparent because we wanna see the pog bg shader not empty white rectangle sprites
+        for (int i = Mathf.Min(buttons.Length, scenarios.Count); i < Mathf.Max(buttons.Length, scenarios.Count) - 1; ++i)
+        {
+            buttons[i + 1].gameObject.GetComponent<Image>().CrossFadeAlpha(0f, 0f, true);
+            buttons[i + 1].interactable = false;
+        }
     }
 
-All that's basically happening is that in ParseVids we look inside the Assets/VideoPlayer/ folder and get a list of all files with an extension of ".m4v", then we store them all in a queue for later use. NextVid essentially just pops the clip we want off the queue and then requeues it in order to cycle, setting the video player's source url to be the path of the clip we just cycled to.
+This function is called by whichever scenario button we click on in ssp, we determine which we clicked then begin to load that scenario. We switch to vpp and load pre.avi.
 
-That's pretty much all the code right now except Quit, which just either quits or stops the editor playing, so I'll just go through some of the things in Unity itself to flesh out my explanation.
+    public void LoadScenario(GameObject btn)
+    {
+        var index = int.Parse(btn.gameObject.name.Substring(2,1));
+        var scName = scenarios[index].Name;
+        var vpc = vpp.GetComponent<VideoPlayer>();
+        //var clip = Resources.Load<VideoClip>("StreamingAssets/Scenarios/" + scName + "/pre");
+        vpc.url = Application.streamingAssetsPath + "/Scenarios/" + scName + "/pre.avi";
+        vpp.SetActive(true);
+        //vpc.clip = clip;
+        //vpc.waitForFirstFrame = true;
+        //vpc.skipOnDrop = true;
+        //vpc.Stop();
+        //vpc.time = 0f;
+        //vpc.Play();
+        List<Graphic> gfx = new List<Graphic>(vpp.GetComponentsInChildren<Graphic>());
+        RawImage ri = vpp.GetComponent<RawImage>();
+        for (int i = 0; i < gfx.Count; ++i)
+        {
+            var g = gfx[i];
+            g.CrossFadeAlpha(0f, 0f, true);
+            var gb = g.gameObject.GetComponent<Button>();
+            if (gb != null)
+            {
+                gb.interactable = false;
+            }
+        }
+        gfx.Remove(ri);
+        sbp.SetActive(false);
+        StartCoroutine(AwaitAfterPreAvi(vpc, gfx, ri));
+    }
+    
+We then wait until pre avi has finished to fade in vpp's controls:
 
-So, these panels I've been talking about are basically just objects that are children of the canvas object, they have various UI components like "Image", "RawImage" or "Button" attached to them to help them function. There are three right now, and to be honest we may not ever need more than that, it just depends what paradigm people prefer. I'm sure you may already have a pretty good idea of what they each do (assuming my readme has been of any use), but I'll just briefly run through and explain anyway to clarify any doubts that may still be lingering:
+    private IEnumerator AwaitAfterPreAvi(VideoPlayer vpc, List<Graphic> gfx, RawImage ri)
+    {
+        vpc.Play();
+        ri.CrossFadeAlpha(1f, videoFadeInDuration, false);
+        yield return new WaitUntil(() => vpc.isPlaying);
+        yield return new WaitUntil(() => !vpc.isPlaying);
+        vpc.Stop();
+        vpc.clip = null;
+        foreach (var g in gfx)
+        {
+            g.CrossFadeAlpha(1f, 1f, false);
+            var gb = g.gameObject.GetComponent<Button>();
+            if (gb != null)
+            {
+                gb.interactable = true;
+            }
+        }
+    }
 
-The logo panel is by far the simplest, it's also the only panel that is active at when starting the game, although invisible due to it's alpha being set to 0 in anticipation of the animation. It is literally just a basic UI object, with an Image component that links to Assets/Textures/studio logo.png, and a canvas group (even though it has no children, just easier to modify alpha this way).
 
-The menu background panel is the next thing we see, which is much like the logo panel in that it has an Image component (Assets/Textures/background.png) and a canvas group. However, it is inactive by default as it is activated by the animation, and it also has another component to it (the vertical layout group), and some children. The Vertical Layout Group is a convenient component that automatically lays out the children in a vertical configuration; there are various parameters we can adjust to affect the layout and I basically just tried to roughly copy the WPF version.
-The children are the four vertically arranged button objects, each having an Image (the button's sprite) and the Button component itself, which we can configure in the inspector.
-
-If we select the topmost button under menu bg panel in the hierarchy and examine it in the inspector by scrolling down to it, we can see that it has two OnClick objects and methods linked: GameObject.SetActive(true) on video player panel, and GameObject.SetActive(false) on menu bg panel. This will, as you may have guessed, activate the until now inactive video player panel, and deactivate its parent the menu bg panel, effectively switching to the game screen. Replacing this with an animation would be as easy as writing the function (probably abstract the logo animation code) to do so and then linking to that instead. The button objects also each have their own child with a Text component, labelling the buttons; these are in child objects because Unity only permits one "graphic" component per object.
-
-The video player panel is the most complex of the UI elements currently, although still not very much so. It is similar to the menu background panel, but has a few key differences, namely that it has a RawImage component instead of an Image component, as it needs to display a RenderTexture not just a sprite, and that it has a Grid Layout Group component instead of the vertical one, though they function in much the same way. The biggest difference however, is of course that it contains the Video Player component. 
-
-The Video Player is fairly simple, it takes a clip or a URL, and then renders it to the RenderTexture that is connected to the RawImage; it also has all the standard controls you might expect, which are accessible through public methods.
-
-The video player panel also has button children, although the back button (the topmost child), has a LayoutElement component which is used to exempt it from the grid layout scheme. The back button takes you back to the menu, again by just switching which objects are active. The only other button that does anything is the top left button in the grid, which calls NextVid, thereby cycling which video plays.
-
-I think this about covers it, any questions just ping me or dm me.
-
-Functionally, I think the only changes that should be necessary for the game code coming from the WPF project would be to ensure there are public methods which the buttons can hook for game choices to update the game state, and also methods calling outward to control which video clip is playing and whether it's paused based on the game logic.
+I think this about covers it, any questions just ping me or dm me (EZ Clap).
