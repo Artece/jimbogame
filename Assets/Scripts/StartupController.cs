@@ -9,7 +9,7 @@ using Models;
 public class StartupController : MonoBehaviour
 {
     // easily modifiable parameters for animations
-    public float introDuration = 2f, pressAnyKeyFlashRate = 2f, menuAnimationBackgroundDuration = 5f, menuAnimationTransitionDuration = 1f;
+    public float introDur = 2f, pkFlashRate = 2f, menuAnimBgDur = 5f, menuAnimBgTrans = 1f, videoFadeTrans = 1f;
     
     // not implemented yet, list of scenarios
     private List<DirectoryInfo> scenarios;
@@ -19,78 +19,51 @@ public class StartupController : MonoBehaviour
     
     // background panel 0 and 1, for menu screen
     private Image bp0, bp1;
-    private bool bp0Active = false;
+    private bool maTick = false;
 
-    private IEnumerator MenuAnimationCatch()
+    private IEnumerator maCatch(IEnumerator clock, bool resetClock)
     {
         // this function only exists to prevent weird behaviour when transitioning back to the menu page
         while (true)
         {
             // basically we detect if the menu page went inactive then if we were due to show the alternative background we set it
-            yield return new WaitUntil(() => !mbp.activeSelf);
-            if (bp0Active)
-            {
-                bp0.CrossFadeAlpha(1f, 0f, true);
-                bp1.CrossFadeAlpha(0f, 0f, true);
-            }
+            yield return new WaitWhile(() => mbp.activeSelf);
+            var bp0a = (maTick) ? 1f : 0f;
+            var bp1a = (maTick) ? 0f : 1f;
+            bp0.CrossFadeAlpha(bp0a, 0f, true);
+            bp1.CrossFadeAlpha(bp1a, 0f, true);
+            if (resetClock) StopCoroutine(clock);
             yield return new WaitUntil(() => mbp.activeSelf);
+            if (resetClock) StartCoroutine(clock = maClock());
         }
     }
 
-   private IEnumerator MenuAnimation()
+    private IEnumerator maClock()
     {
-        StartCoroutine(MenuAnimationCatch());
-        // loop forever
         while (true)
         {
-            bp0Active = false;
-            // fade out bp0 over transition duration seconds and fade in bp1
-            bp0.CrossFadeAlpha(0f, menuAnimationTransitionDuration, false);
-            bp1.CrossFadeAlpha(1f, menuAnimationTransitionDuration, false);
-            // wait until the menu screen is active
-            yield return new WaitUntil(() => mbp.activeSelf);
-            // wait until we have to change backgrounds again
-            yield return new WaitForSeconds(menuAnimationBackgroundDuration);
-
-            // rinse and repeat only in reverse
-            bp0Active = true;
-            bp0.CrossFadeAlpha(1f, menuAnimationTransitionDuration, false);
-            bp1.CrossFadeAlpha(0f, menuAnimationTransitionDuration, false);
-            yield return new WaitUntil(() => mbp.activeSelf);
-            yield return new WaitForSeconds(menuAnimationBackgroundDuration);
+            yield return new WaitForSeconds(menuAnimBgDur);
+            maTick = !maTick;
+            var bp0a = (maTick) ? 1f : 0f;
+            var bp1a = (maTick) ? 0f : 1f;
+            bp0.CrossFadeAlpha(bp0a, menuAnimBgTrans, false);
+            bp1.CrossFadeAlpha(bp1a, menuAnimBgTrans, false);
         }
     }
 
     private IEnumerator IntroAnimation()
     {
-        // handy variables
-        float hdur = introDuration * .5f, qdur = introDuration * .25f, hpi = 1.57f;
+        float qdur = introDur * .25f;
 
+        // get the "press any key" text and the pkp image, and set both to be forsenCD so we can fade in
         pkp.gameObject.SetActive(true);
-        // get the "press any key" text and the logo image, and set both to be transparent so we can fade in
         var text = pkp.GetComponentInChildren<Text>();
-        // get the image of pkp
         var pki = pkp.GetComponent<Image>();
         text.CrossFadeAlpha(0f, 0f, true);
         pki.CrossFadeAlpha(0f, 0f, true);
 
         // wait for a bit (smoother looking during testing)
         yield return new WaitForSeconds(qdur);
-
-        /*
-
-        // fade the image in
-        pki.CrossFadeAlpha(1f, qdur, false);
-        // wait for fade to finish
-        yield return new WaitForSeconds(qdur);
-        // then fade out and wait
-        pki.CrossFadeAlpha(0f, qdur, false);
-        yield return new WaitForSeconds(qdur);
-
-        //// change the sprite (the texture basically) of pki to the press any key screen
-        pki.sprite = pressAnyKeyScreen;
-        // then fade it back in along with the text
-        */
 
         text.CrossFadeAlpha(1f, qdur, false);
         pki.CrossFadeAlpha(1f, qdur, false);
@@ -101,12 +74,12 @@ public class StartupController : MonoBehaviour
 
         // slowly pulse the text until a kep is pressed
         // first get the sin offset by taking the current time times the flash rate and adding half pi
-        var sinOffset = hpi + Time.time * pressAnyKeyFlashRate;
+        var sinOffset = 1.57f + Time.time * pkFlashRate;
         // then loop until we get an input
         while (!Input.anyKey)
         {
             // fade the text to the absolute sin of the rate-scaled time value with the offset
-            text.CrossFadeAlpha(Mathf.Abs(Mathf.Sin((Time.time * pressAnyKeyFlashRate) - sinOffset)), Time.deltaTime, false);
+            text.CrossFadeAlpha(Mathf.Abs(Mathf.Sin((Time.time * pkFlashRate) - sinOffset)), Time.deltaTime, false);
             // don't wait, we want to come back next frame or occasionally you'll miss an input which feels scuffed
             yield return null;
         }
@@ -124,24 +97,39 @@ public class StartupController : MonoBehaviour
 
         // then fade out press any key screen
         pki.CrossFadeAlpha(0f, qdur, false);
-        yield return new WaitForSeconds(qdur);
 
-        // deactivate the logo panel and switch to the menu view
-        pkp.SetActive(false);
+        // set mbp to active
         mbp.SetActive(true);
 
-        // get the canvas group of menu background panel
-        CanvasGroup mpc = mbp.GetComponent<CanvasGroup>();
-
-        // then fade it in gradually, could also use crossfade alpha on every child of it here
-        for (float t = 0f; t < qdur; t += Time.deltaTime)
+        // loop through all graphical components of mbp and make transparent
+        var gfx = mbp.GetComponentsInChildren<Graphic>();
+        foreach (Graphic g in gfx)
         {
-            mpc.alpha = Mathf.Sin(hpi * t / qdur);
-            yield return null;
+            g.CrossFadeAlpha(0f, 0f, true);
+        }
+        // then wait
+        yield return new WaitForSeconds(qdur);
+
+        // deactivate pkp as no longer needed
+        pkp.SetActive(false);
+        
+        // start the fade in of mbp
+        foreach (Graphic g in gfx)
+        {
+            g.CrossFadeAlpha(1f, 1f, false);
         }
 
+        // get the background panels
+        bp0 = mbp.transform.Find("BP0").gameObject.GetComponent<Image>();
+        bp1 = mbp.transform.Find("BP1").gameObject.GetComponent<Image>();
+
+        // override the fade in on bp0 as we only want one bg to start with
+        bp0.CrossFadeAlpha(0f, 0f, true);
+
         // then enter menu animation
-        StartCoroutine(MenuAnimation());
+        IEnumerator clock;
+        StartCoroutine(clock = maClock());
+        StartCoroutine(maCatch(clock, true));
     }
     
     private Sprite LoadSprite(string path)
@@ -156,12 +144,6 @@ public class StartupController : MonoBehaviour
     // not implemented
     public void ParseScenarios()
     {
-        /*
-         * Unity seems to not package the directory structure when building for a stanalone exe (with current settings at least).
-         * This leads to it not loading assets properly as well as raising questions about how to differentiate different scenarios.
-         * So may need to rethink these hardcoded paths and directory parsing, perhaps use JSON representation of hierarchy instead?
-         */
-
         // get a list of all the scenarios in the scenarios folder
         DirectoryInfo dir = new DirectoryInfo(Application.streamingAssetsPath + "/Scenarios");
         scenarios = new List<DirectoryInfo>(dir.GetDirectories());
@@ -226,18 +208,8 @@ public class StartupController : MonoBehaviour
 
     private IEnumerator AwaitAfterPreAvi(VideoPlayer vpc, List<Graphic> gfx, RawImage ri)
     {
-        //vpc.frame = 0;
-        //yield return new WaitForSeconds(5f);
-        /* 
-         * unity video player is kinda bad, seems to always do this really annoying behaviour
-         * where it doesn't reset to the first frame before drawing so you get a static image of the last frame of the video for like ~5frames or something, 
-         * then a really jarring jump from the last frame to the first when it actually starts playing
-         * 
-         * After hours of experimentation, the best fix I've found for this so far is just to fade in the image while this jump is occuring so it doesn't look bad lol
-         * you can see some of the things I tried commented out
-         */
         vpc.Play();
-        ri.CrossFadeAlpha(1f, .5f, false);
+        ri.CrossFadeAlpha(1f, videoFadeTrans, false);
         yield return new WaitUntil(() => vpc.isPlaying);
         yield return new WaitUntil(() => !vpc.isPlaying);
         vpc.Stop();
@@ -282,10 +254,6 @@ public class StartupController : MonoBehaviour
         pkp = transform.Find("PKP").gameObject;
         ssp = transform.Find("SSP").gameObject;
         gsp = transform.Find("GSP").gameObject;
-        bp0 = mbp.transform.Find("BP0").gameObject.GetComponent<Image>();
-        bp1 = mbp.transform.Find("BP1").gameObject.GetComponent<Image>();
-        // set alpha of background panel 0 to be 0 so that it doesn't bleed through before animation starts
-        bp0.CrossFadeAlpha(0f, 0f, true);
         StartCoroutine(IntroAnimation());
     }
 
