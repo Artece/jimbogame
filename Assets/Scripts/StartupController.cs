@@ -84,6 +84,8 @@ public class StartupController : MonoBehaviour
             yield return null;
         }
 
+        GameObject.Find("Button2Audio").GetComponent<AudioSource>().Play();
+
         // after user input flash the text three times rapidly before fading out completely
         for (int i = 0; i < 3; i++)
         {
