@@ -4,6 +4,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Video;
+using System.Linq;
 using Models;
 
 public class StartupController : MonoBehaviour
@@ -49,6 +50,17 @@ public class StartupController : MonoBehaviour
             bp0.CrossFadeAlpha(bp0a, menuAnimBgTrans, false);
             bp1.CrossFadeAlpha(bp1a, menuAnimBgTrans, false);
         }
+    }
+
+
+    private void When(YieldInstruction cond, System.Action<List<object>> action, List<object> list = null)
+    {
+        StartCoroutine(_When(cond, action, list));
+    }
+    private IEnumerator _When(YieldInstruction cond, System.Action<List<object>> action, List<object> list = null)
+    {
+        yield return cond;
+        action(list);
     }
 
     private IEnumerator IntroAnimation()
@@ -103,12 +115,13 @@ public class StartupController : MonoBehaviour
         // set mbp to active
         mbp.SetActive(true);
 
+        var bns = new List<Button>(mbp.GetComponentsInChildren<Button>());
+        bns.ForEach((Button b) => b.interactable = false);
+
         // loop through all graphical components of mbp and make transparent
-        var gfx = mbp.GetComponentsInChildren<Graphic>();
-        foreach (Graphic g in gfx)
-        {
-            g.CrossFadeAlpha(0f, 0f, true);
-        }
+        var gfx = new List<Graphic>(mbp.GetComponentsInChildren<Graphic>());
+        gfx.ForEach((Graphic g) => g.CrossFadeAlpha(0f, 0f, true));
+
         // then wait
         yield return new WaitForSeconds(qdur);
 
@@ -116,10 +129,10 @@ public class StartupController : MonoBehaviour
         pkp.SetActive(false);
         
         // start the fade in of mbp
-        foreach (Graphic g in gfx)
-        {
-            g.CrossFadeAlpha(1f, 1f, false);
-        }
+        gfx.ForEach((Graphic g) => g.CrossFadeAlpha(1f, 1f, false));
+
+        // just experimenting with coroutine madness
+        //When(new WaitForSeconds(1f), (obj) => obj.Select(o => (Button)o).ToList().ForEach((Button b) => b.interactable = true), bns.Select(b => (object)b).ToList());
 
         // get the background panels
         bp0 = mbp.transform.Find("BP0").gameObject.GetComponent<Image>();
@@ -132,6 +145,10 @@ public class StartupController : MonoBehaviour
         IEnumerator clock;
         StartCoroutine(clock = maClock());
         StartCoroutine(maCatch(clock, true));
+
+        // much simpler to just wait like this
+        yield return new WaitForSeconds(1f);
+        bns.ForEach((Button b) => b.interactable = true);
     }
     
     private Sprite LoadSprite(string path)
@@ -229,6 +246,24 @@ public class StartupController : MonoBehaviour
 
     public void Quit()
     {
+        StartCoroutine(_Quit());
+    }
+
+    private IEnumerator _Quit() {
+        var quitDur = .8f;
+        var canv = GameObject.Find("Canvas");
+        var gfx = canv.GetComponentsInChildren<Graphic>();
+        var bns = canv.GetComponentsInChildren<Button>();
+        foreach (Button b in bns)
+        {
+            b.interactable = false;
+        }
+        yield return new WaitForSeconds(quitDur * .25f);
+        foreach (Graphic g in gfx)
+        {
+            g.CrossFadeAlpha(0f, quitDur *.5f, false);
+        }
+        yield return new WaitForSeconds(quitDur * .75f);
 #if UNITY_EDITOR
         // Application.Quit() does not work in the editor so
         // UnityEditor.EditorApplication.isPlaying need to be set to false to end the game
