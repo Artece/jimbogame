@@ -11,16 +11,64 @@ public class StartupController : MonoBehaviour
 {
     // easily modifiable parameters for animations
     public float introDur = 2f, pkFlashRate = 2f, menuAnimBgDur = 5f, menuAnimBgTrans = 1f, videoFadeTrans = 1f;
-    
+
     // not implemented yet, list of scenarios
-    private List<DirectoryInfo> scenarios;
-    
+    private List<DirectoryInfo> scDir;
+    private List<ScenarioSchema> scenarios;
+    private ScenarioSchema currentScenario;
+
     // shader background panel, video player panel, menu background panel, studio logo panel, scenario select panel, game settings panel
     private GameObject sbp, vpp, mbp, pkp, ssp, gsp;
-    
+
+    private AudioSource mua, b1a, b2a;
+
+    private class AudioSettingsJson
+    {
+        public float musicVolume = .2f;
+        public float button1Volume = .2f;
+        public float button2Volume = .2f;
+        public AudioSettingsJson(float mv, float b1, float b2)
+        {
+            musicVolume = mv;
+            button1Volume = b1;
+            button2Volume = b2;
+        }
+    }
+
     // background panel 0 and 1, for menu screen
     private Image bp0, bp1;
     private bool maTick = false;
+
+    public void CallCoroutine(string s)
+    {
+        var args = s.Split(',');
+        object[] argv = new object[args.Length - 1];
+        for (int i = 0; i < argv.Length; ++i)
+        {
+            var v = args[i + 1].Split(':');
+            switch (v[0])
+            {
+                default:
+                case "s":
+                    argv[i] = v[1];
+                    break;
+                case "b":
+                    argv[i] = bool.Parse(v[1]);
+                    break;
+                case "i":
+                    argv[i] = int.Parse(v[1]);
+                    break;
+                case "f":
+                    argv[i] = float.Parse(v[1]);
+                    break;
+            }
+        }
+        if (args.Length < 2)
+        {
+            argv = null;
+        }
+        StartCoroutine(args[0], argv);
+    }
 
     private IEnumerator maCatch(IEnumerator clock, bool resetClock)
     {
@@ -52,15 +100,14 @@ public class StartupController : MonoBehaviour
         }
     }
 
-
-    private void When(YieldInstruction cond, System.Action<List<object>> action, List<object> list = null)
+    private void When(YieldInstruction cond, System.Action action)
     {
-        StartCoroutine(_When(cond, action, list));
+        StartCoroutine(_When(cond, action));
     }
-    private IEnumerator _When(YieldInstruction cond, System.Action<List<object>> action, List<object> list = null)
+    private IEnumerator _When(YieldInstruction cond, System.Action action)
     {
         yield return cond;
-        action(list);
+        action();
     }
 
     private IEnumerator IntroAnimation()
@@ -96,6 +143,7 @@ public class StartupController : MonoBehaviour
             yield return null;
         }
 
+        // play sound when we enter
         GameObject.Find("Button2Audio").GetComponent<AudioSource>().Play();
 
         // after user input flash the text three times rapidly before fading out completely
@@ -115,24 +163,25 @@ public class StartupController : MonoBehaviour
         // set mbp to active
         mbp.SetActive(true);
 
+        // set buttons to be non-interactable as otherwise their mouseover animations can fuck up the fade in
         var bns = new List<Button>(mbp.GetComponentsInChildren<Button>());
-        bns.ForEach((Button b) => b.interactable = false);
+        bns.ForEach((b) => b.interactable = false);
 
         // loop through all graphical components of mbp and make transparent
         var gfx = new List<Graphic>(mbp.GetComponentsInChildren<Graphic>());
-        gfx.ForEach((Graphic g) => g.CrossFadeAlpha(0f, 0f, true));
+        gfx.ForEach((g) => g.CrossFadeAlpha(0f, 0f, true));
 
         // then wait
         yield return new WaitForSeconds(qdur);
 
         // deactivate pkp as no longer needed
         pkp.SetActive(false);
-        
-        // start the fade in of mbp
-        gfx.ForEach((Graphic g) => g.CrossFadeAlpha(1f, 1f, false));
 
-        // just experimenting with coroutine madness
-        //When(new WaitForSeconds(1f), (obj) => obj.Select(o => (Button)o).ToList().ForEach((Button b) => b.interactable = true), bns.Select(b => (object)b).ToList());
+        // start the fade in of mbp
+        gfx.ForEach((g) => g.CrossFadeAlpha(1f, 1f, false));
+
+        // just experimenting with forking coroutines with lambda exps
+        //When(new WaitForSeconds(1f), () => bns.ForEach((b) => b.interactable = true));
 
         // get the background panels
         bp0 = mbp.transform.Find("BP0").gameObject.GetComponent<Image>();
@@ -146,11 +195,12 @@ public class StartupController : MonoBehaviour
         StartCoroutine(clock = maClock());
         StartCoroutine(maCatch(clock, true));
 
-        // much simpler to just wait like this
+        // make sure to reenable them again ;)
+        // much simpler to just wait like this than use When()
         yield return new WaitForSeconds(1f);
-        bns.ForEach((Button b) => b.interactable = true);
+        bns.ForEach((b) => b.interactable = true);
     }
-    
+
     private Sprite LoadSprite(string path)
     {
         byte[] d = File.ReadAllBytes(path);
@@ -159,16 +209,17 @@ public class StartupController : MonoBehaviour
         var sprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2());
         return sprite;
     }
-    
+
     // not implemented
     public void ParseScenarios()
     {
         // get a list of all the scenarios in the scenarios folder
         DirectoryInfo dir = new DirectoryInfo(Application.streamingAssetsPath + "/Scenarios");
-        scenarios = new List<DirectoryInfo>(dir.GetDirectories());
+        scDir = new List<DirectoryInfo>(dir.GetDirectories());
+        scenarios = new List<ScenarioSchema>();
         // get a list of the buttons on SSP
         var buttons = ssp.transform.GetComponentsInChildren<Button>();
-        for (int i = 0; i < Mathf.Min(buttons.Length, scenarios.Count); ++i)
+        for (int i = 0; i < Mathf.Min(buttons.Length, scDir.Count); ++i)
         {
             // start on the 1st button as 0th is back, and get the image
             var img = buttons[i + 1].gameObject.GetComponent<Image>();
@@ -176,80 +227,127 @@ public class StartupController : MonoBehaviour
             // make the path by combining the scenarios folder, with the scenario folder in question, with the filename
             // this has to be relative to the resources folder because Resources.Load will only look in there
             // Resources.Load also hates file extensions for some inexplicable reason, so beware
-            var path = Application.streamingAssetsPath + "/Scenarios/" + scenarios[i].Name + "/bg.png";
+            var path = Application.streamingAssetsPath + "/Scenarios/" + scDir[i].Name;
 
             // actually load it
-            var sprite = LoadSprite(path);
-            //var sprite = Resources.Load<Sprite>(path);
-            
+            var sprite = LoadSprite(path + "/bg.png");
+            var json = File.ReadAllText(path + "/scenario.json");
+            ScenarioSchema scenario = (ScenarioSchema)JsonUtility.FromJson(json, typeof(ScenarioSchema));
+            scenarios.Add(scenario);
+
             // and assign
             img.sprite = sprite;
-            txt.text = scenarios[i].Name;
+            txt.text = scenario.Title + "\n" + scenario.Subtitle + "\n" + scenario.Description;
         }
         // go through and make the rest transparent because we wanna see the pog bg shader not empty white rectangle sprites
-        for (int i = Mathf.Min(buttons.Length, scenarios.Count); i < Mathf.Max(buttons.Length, scenarios.Count) - 1; ++i)
+        for (int i = Mathf.Min(buttons.Length, scDir.Count); i < Mathf.Max(buttons.Length, scDir.Count) - 1; ++i)
         {
             buttons[i + 1].gameObject.GetComponent<Image>().CrossFadeAlpha(0f, 0f, true);
             buttons[i + 1].interactable = false;
         }
     }
 
-    public void LoadScenario(GameObject btn)
+    private IEnumerator LoadScenario(object[] parms)
     {
-        var index = int.Parse(btn.gameObject.name.Substring(2,1));
-        var scName = scenarios[index].Name;
-        var vpc = vpp.GetComponent<VideoPlayer>();
-        //var clip = Resources.Load<VideoClip>("StreamingAssets/Scenarios/" + scName + "/pre");
-        vpc.url = Application.streamingAssetsPath + "/Scenarios/" + scName + "/pre.avi";
-        vpp.SetActive(true);
-        //vpc.clip = clip;
-        //vpc.waitForFirstFrame = true;
-        //vpc.skipOnDrop = true;
-        //vpc.Stop();
-        //vpc.time = 0f;
-        //vpc.Play();
-        List<Graphic> gfx = new List<Graphic>(vpp.GetComponentsInChildren<Graphic>());
-        RawImage ri = vpp.GetComponent<RawImage>();
-        for (int i = 0; i < gfx.Count; ++i)
-        {
-            var g = gfx[i];
-            g.CrossFadeAlpha(0f, 0f, true);
-            var gb = g.gameObject.GetComponent<Button>();
-            if (gb != null)
-            {
-                gb.interactable = false;
-            }
-        }
-        gfx.Remove(ri);
-        sbp.SetActive(false);
-        StartCoroutine(AwaitAfterPreAvi(vpc, gfx, ri));
-    }
+        int index = (int)parms[0];
+        currentScenario = scenarios[index];
+        var path = Application.streamingAssetsPath + "/Scenarios/" + scDir[index].Name;
 
-    private IEnumerator AwaitAfterPreAvi(VideoPlayer vpc, List<Graphic> gfx, RawImage ri)
-    {
+        sbp.SetActive(false);
+        vpp.SetActive(true);
+
+        var gfx = new List<Graphic>(vpp.GetComponentsInChildren<Graphic>());
+        var bns = new List<Button>(vpp.GetComponentsInChildren<Button>());
+        RawImage ri = vpp.GetComponent<RawImage>();
+        gfx.ForEach((g) => g.CrossFadeAlpha(0f, 0f, true));
+        gfx.Remove(ri);
+        bns.ForEach((b) => b.interactable = false);
+
+        var vpc = vpp.GetComponent<VideoPlayer>();
+        vpc.url = path + "/pre.avi";
         vpc.Play();
         ri.CrossFadeAlpha(1f, videoFadeTrans, false);
+
         yield return new WaitUntil(() => vpc.isPlaying);
         yield return new WaitUntil(() => !vpc.isPlaying);
-        vpc.Stop();
-        vpc.clip = null;
-        foreach (var g in gfx)
-        {
-            g.CrossFadeAlpha(1f, 1f, false);
-            var gb = g.gameObject.GetComponent<Button>();
-            if (gb != null)
-            {
-                gb.interactable = true;
-            }
-        }
+
+        gfx.ForEach((g) => g.CrossFadeAlpha(1f, 1f, false));
+        bns.ForEach((b) => b.interactable = true);
+
+        yield return new WaitForSeconds(1f);
+
+        LoadBranchPos(path + "/", currentScenario.Settings.StartingBranch, currentScenario.Settings.StartingPathPosition);
     }
 
-    public void Quit()
+    [System.Serializable]
+    private class ButtonArrayWrapper
     {
-        StartCoroutine(_Quit());
+        public ButtonSchema[] values;
     }
 
-    private IEnumerator _Quit() {
+    public void LoadBranchPos(string path, string branch, int pos) {
+        // get the mid row
+        var mr = vpp.transform.Find("MidRow");
+
+        // clear all current children of MidRow i.e. existing buttons
+        foreach (Transform c in mr.transform)
+        {
+            GameObject.Destroy(c);
+        }
+
+        // parse the options file for button layout
+        var buttonsJson = "{\"values\":" + File.ReadAllText(path + branch + pos + "/options.json") + "}";
+        var gameButtons = new List<ButtonSchema>(((ButtonArrayWrapper)JsonUtility.FromJson(buttonsJson, typeof(ButtonArrayWrapper))).values);
+
+        // add a new child to MidRow for each ButtonSchema
+        gameButtons.ForEach((b) =>
+        {
+            // add the button gameobject and make it child of mr
+            var go = new GameObject(b.Label);
+            go.transform.parent = mr.transform;
+            // give it a canvasrenderer so we can see it
+            go.AddComponent<CanvasRenderer>();
+            
+            // give it an image and set it to be the default ui sprite
+            var img = go.AddComponent<Image>();
+            img.sprite = Resources.Load<Sprite>("unity_builtin_extra/UISprite");
+            
+            // give it a button script
+            var btn = go.AddComponent<Button>();
+            if (b.Path == null)
+            {
+                b.Path = new StoryPath();
+                b.Path.Branch = branch;
+                b.Path.StartPosition = pos + 1;
+            }
+
+            var vpc = vpp.GetComponent<VideoPlayer>();
+            btn.onClick.AddListener(() => vpc.url = path + branch + pos + "/" + b.VideoFilename);
+            vpc.loopPointReached += (vp) => LoadBranchPos(path, b.Path.Branch, b.Path.StartPosition);
+            
+            // give it a child with a text component for the label
+            var tc = new GameObject("Text");
+            tc.transform.parent = go.transform;
+            var txt = tc.AddComponent<Text>();
+            txt.text = b.Label;
+        });
+    }
+
+    public void LoadSettings()
+    {
+        var asj = (AudioSettingsJson)JsonUtility.FromJson(File.ReadAllText(Application.persistentDataPath + "/AudioSettings.json"), typeof(AudioSettingsJson));
+        mua.volume = asj.musicVolume;
+        b1a.volume = asj.button1Volume;
+        b2a.volume = asj.button2Volume;
+    }
+    public void SaveSettings()
+    {
+        var asj = new AudioSettingsJson(mua.volume, b1a.volume, b2a.volume);
+        var str = JsonUtility.ToJson(asj);
+        File.WriteAllText(Application.persistentDataPath + "/AudioSettings.json", str);
+    }
+
+    private IEnumerator Quit() {
         var quitDur = .8f;
         var canv = GameObject.Find("Canvas");
         var gfx = canv.GetComponentsInChildren<Graphic>();
@@ -291,6 +389,10 @@ public class StartupController : MonoBehaviour
         pkp = transform.Find("PKP").gameObject;
         ssp = transform.Find("SSP").gameObject;
         gsp = transform.Find("GSP").gameObject;
+        mua = GameObject.Find("MusicAudio").GetComponent<AudioSource>();
+        b1a = GameObject.Find("Button1Audio").GetComponent<AudioSource>();
+        b2a = GameObject.Find("Button2Audio").GetComponent<AudioSource>();
+        LoadSettings();
         StartCoroutine(IntroAnimation());
     }
 

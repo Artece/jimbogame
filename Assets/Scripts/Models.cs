@@ -1,8 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
+using System;
 
 namespace Models
 {
+
+    [Serializable]
     public enum ButtonType
     {
         Default,
@@ -10,6 +13,7 @@ namespace Models
     }
 
     // used to deserialize from json
+    [Serializable]
     public class ScenarioSchema
     {
         public string Title;
@@ -18,6 +22,7 @@ namespace Models
         public ScenarioSettings Settings;
     }
 
+    [Serializable]
     public class ScenarioSettings
     {
         public int StartingHP;
@@ -27,6 +32,7 @@ namespace Models
     }
 
     // used to deserialize from json
+    [Serializable]
     public class ButtonSchema
     {
         public ButtonType ButtonType;
@@ -38,24 +44,28 @@ namespace Models
         public string EndScreenMessage;
     }
 
+    [Serializable]
     public class Ending
     {
         public List<int> WhenPointsAreBetween;
         public string VideoFilename;
     }
 
+    [Serializable]
     public class StoryPath
     {
         public string Branch;
         public int StartPosition;
     }
 
+    [Serializable]
     public class ScoreAdjustment
     {
         public int HP;
         public int Points;
     }
 
+    [Serializable]
     public class ButtonData
     {
         public ButtonType ButtonType;
@@ -66,6 +76,7 @@ namespace Models
         public string EndScreenMessage;
     }
 
+    [Serializable]
     public class GameSettings
     {
         // not used yet
