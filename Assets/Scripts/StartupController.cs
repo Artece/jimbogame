@@ -15,7 +15,10 @@ public class StartupController : MonoBehaviour
     // not implemented yet, list of scenarios
     private List<DirectoryInfo> scDir;
     private List<ScenarioSchema> scenarios;
-    private ScenarioSchema currentScenario;
+    private ScenarioSchema selectedScenario;
+    private string selectedScenarioPath;
+    private ScoreAdjustment currentScore;
+    private StoryPath currentBranchPos;
 
     // shader background panel, video player panel, menu background panel, studio logo panel, scenario select panel, game settings panel
     private GameObject sbp, vpp, mbp, pkp, ssp, gsp;
@@ -103,6 +106,15 @@ public class StartupController : MonoBehaviour
     private void When(YieldInstruction cond, System.Action action)
     {
         StartCoroutine(_When(cond, action));
+    }
+    private void When(CustomYieldInstruction cond, System.Action action)
+    {
+        StartCoroutine(_When(cond, action));
+    }
+    private IEnumerator _When(CustomYieldInstruction cond, System.Action action)
+    {
+        yield return cond;
+        action();
     }
     private IEnumerator _When(YieldInstruction cond, System.Action action)
     {
@@ -213,6 +225,9 @@ public class StartupController : MonoBehaviour
     // not implemented
     public void ParseScenarios()
     {
+        var strs = new string[2]{ "", "" };
+        vpUrlQ = new Queue<string>(strs);
+
         // get a list of all the scenarios in the scenarios folder
         DirectoryInfo dir = new DirectoryInfo(Application.streamingAssetsPath + "/Scenarios");
         scDir = new List<DirectoryInfo>(dir.GetDirectories());
@@ -245,16 +260,27 @@ public class StartupController : MonoBehaviour
             buttons[i + 1].gameObject.GetComponent<Image>().CrossFadeAlpha(0f, 0f, true);
             buttons[i + 1].interactable = false;
         }
+
+        new List<Graphic>(vpp.transform.Find("MidRow").GetComponentsInChildren<Graphic>()).ForEach((g) =>
+        {
+            g.gameObject.SetActive(false);
+            GameObject.Destroy(g.gameObject);
+        });
     }
 
     private IEnumerator LoadScenario(object[] parms)
     {
         int index = (int)parms[0];
-        currentScenario = scenarios[index];
-        var path = Application.streamingAssetsPath + "/Scenarios/" + scDir[index].Name;
+        selectedScenario = scenarios[index];
+        selectedScenarioPath = Application.streamingAssetsPath + "/Scenarios/" + scDir[index].Name + "/";
 
         sbp.SetActive(false);
         vpp.SetActive(true);
+
+        currentBranchPos = selectedScenario.Settings.StartPath;
+        currentScore = selectedScenario.Settings.StartScore;
+
+        GameChoice();
 
         var gfx = new List<Graphic>(vpp.GetComponentsInChildren<Graphic>());
         var bns = new List<Button>(vpp.GetComponentsInChildren<Button>());
@@ -264,19 +290,15 @@ public class StartupController : MonoBehaviour
         bns.ForEach((b) => b.interactable = false);
 
         var vpc = vpp.GetComponent<VideoPlayer>();
-        vpc.url = path + "/pre.avi";
+        SetVideoUrl(vpc, selectedScenarioPath + "pre.avi");
         vpc.Play();
         ri.CrossFadeAlpha(1f, videoFadeTrans, false);
 
         yield return new WaitUntil(() => vpc.isPlaying);
-        yield return new WaitUntil(() => !vpc.isPlaying);
+        yield return new WaitWhile(() => vpc.isPlaying);
 
         gfx.ForEach((g) => g.CrossFadeAlpha(1f, 1f, false));
         bns.ForEach((b) => b.interactable = true);
-
-        yield return new WaitForSeconds(1f);
-
-        LoadBranchPos(path + "/", currentScenario.Settings.StartingBranch, currentScenario.Settings.StartingPathPosition);
     }
 
     [System.Serializable]
@@ -285,52 +307,201 @@ public class StartupController : MonoBehaviour
         public ButtonSchema[] values;
     }
 
-    public void LoadBranchPos(string path, string branch, int pos) {
+    public void GameChoice() {
         // get the mid row
         var mr = vpp.transform.Find("MidRow");
+        var sprite = mr.parent.transform.Find("TopRow").Find("Back").GetComponent<Image>().sprite;
 
         // clear all current children of MidRow i.e. existing buttons
         foreach (Transform c in mr.transform)
         {
-            GameObject.Destroy(c);
+            GameObject.Destroy(c.gameObject);
         }
 
         // parse the options file for button layout
-        var buttonsJson = "{\"values\":" + File.ReadAllText(path + branch + pos + "/options.json") + "}";
+        var buttonsJson = "{\"values\":" + File.ReadAllText(selectedScenarioPath + currentBranchPos + "options.json") + "}";
         var gameButtons = new List<ButtonSchema>(((ButtonArrayWrapper)JsonUtility.FromJson(buttonsJson, typeof(ButtonArrayWrapper))).values);
+        var vpc = vpp.GetComponent<VideoPlayer>();
+
+        var bb = vpp.transform.Find("TopRow").transform.Find("Back").gameObject;
 
         // add a new child to MidRow for each ButtonSchema
-        gameButtons.ForEach((b) =>
+        //gameButtons.ForEach((b) =>
+        foreach (ButtonSchema b in gameButtons)
         {
             // add the button gameobject and make it child of mr
-            var go = new GameObject(b.Label);
-            go.transform.parent = mr.transform;
+            //var go = new GameObject(b.Label);
+            var go = GameObject.Instantiate(bb);
+            go.name = b.Label;
+            go.transform.SetParent(mr.transform, false);
             // give it a canvasrenderer so we can see it
-            go.AddComponent<CanvasRenderer>();
+            //go.AddComponent<CanvasRenderer>();
             
             // give it an image and set it to be the default ui sprite
-            var img = go.AddComponent<Image>();
-            img.sprite = Resources.Load<Sprite>("unity_builtin_extra/UISprite");
-            
+            //var img = go.AddComponent<Image>();
+            //img.type = Image.Type.Sliced;
+            //img.sprite = sprite;
+            //img.CrossFadeAlpha(0f, 0f, true);
+            //img.sprite.
+
             // give it a button script
-            var btn = go.AddComponent<Button>();
-            if (b.Path == null)
+            //var btn = go.AddComponent<Button>();
+            if (b.Path.Branch == null)
             {
-                b.Path = new StoryPath();
-                b.Path.Branch = branch;
-                b.Path.StartPosition = pos + 1;
+                b.Path.Branch = currentBranchPos.Branch;
+                b.Path.StartPosition = currentBranchPos.StartPosition + 1;
+            }
+            // wish we could just do btn.colors.disabledColor = Color.white
+            //var colors = ColorBlock.defaultColorBlock;
+            //colors.disabledColor = Color.white;
+            //btn.colors = colors;
+
+            var btn = go.GetComponent<Button>();
+
+            for (int i = 0; i < btn.onClick.GetPersistentEventCount(); ++i)
+            {
+                btn.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
             }
 
-            var vpc = vpp.GetComponent<VideoPlayer>();
-            btn.onClick.AddListener(() => vpc.url = path + branch + pos + "/" + b.VideoFilename);
-            vpc.loopPointReached += (vp) => LoadBranchPos(path, b.Path.Branch, b.Path.StartPosition);
-            
+            btn.onClick.AddListener(() => {
+                currentScore += b.ScoreAdjustment;
+
+                // get rid of the buttons
+                new List<Graphic>(mr.transform.GetComponentsInChildren<Graphic>()).ForEach((g) =>
+                {
+                    g.CrossFadeAlpha(0f, 1f, false);
+                    When(new WaitForSeconds(1f), () => g.gameObject.SetActive(false));
+                });
+                new List<Button>(mr.transform.GetComponentsInChildren<Button>()).ForEach((b) => b.interactable = false);
+
+                // play button sound
+                b1a.Play();
+
+                // update video player clip
+                SetVideoUrl(vpc, selectedScenarioPath + currentBranchPos + b.VideoFilename);
+
+                var noCondEnding = true;
+                if (b.Endings.Count > 0)
+                {
+                    // endings
+                    foreach (var ending in b.Endings)
+                    {
+                        if (currentScore.Points >= ending.WhenPointsAreBetween[0] && currentScore.Points < ending.WhenPointsAreBetween[1])
+                        {
+                            // use this ending
+                            vpc.loopPointReached += AddLoopPointEventHandler((vp) =>
+                            {
+                                SetVideoUrl(vp, selectedScenarioPath + "endings/" + ending.VideoFilename);
+                                vp.loopPointReached += (unused) => EndScreen(b);
+                                vp.Play();
+                            });
+                            noCondEnding = false;
+                            break;
+                        }
+                    }
+                        
+                }
+
+                if (noCondEnding)
+                {
+                    // detect health etc.
+                    if (currentScore.HP < 1 || b.ButtonType == ButtonType.End.ToString())
+                    {
+                        // lose
+                        vpc.loopPointReached += AddLoopPointEventHandler((vp) => EndScreen(b));
+                    }
+                    else
+                    {
+                        // trigger the next screen
+                        vpc.loopPointReached += AddLoopPointEventHandler((vp) => GameChoice());
+                        //vpc.loopPointReached += (DumbStuff() += (vp) => GameChoice());
+                        // update the branch pos
+                        currentBranchPos = b.Path;
+                    }
+                }
+
+                // play video after delay
+                When(new WaitForSeconds(1f), () => vpc.Play());
+            });
+
             // give it a child with a text component for the label
-            var tc = new GameObject("Text");
-            tc.transform.parent = go.transform;
-            var txt = tc.AddComponent<Text>();
+            //var tc = new GameObject("Text");
+            //tc.transform.parent = go.transform;
+            //var txt = tc.AddComponent<Text>();
+            var txt = go.GetComponentInChildren<Text>();
             txt.text = b.Label;
+            //txt.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            //txt.color = Color.black;
+            //txt.fontSize = 34;
+            //txt.alignment = TextAnchor.MiddleCenter;
+            //txt.horizontalOverflow = HorizontalWrapMode.Overflow;
+            //txt.verticalOverflow = VerticalWrapMode.Overflow;
+        }//);
+    }
+
+    private Queue<string> vpUrlQ;
+    private void SetVideoUrl(VideoPlayer vp, string url)
+    {
+        vp.url = url;
+        vpUrlQ.Dequeue();
+        vpUrlQ.Enqueue(url);
+    }
+
+    private VideoPlayer.EventHandler AddLoopPointEventHandler(VideoPlayer.EventHandler ourCode)
+    {
+        VideoPlayer.EventHandler eh = (vp) => { };
+        eh += (vp) => vp.loopPointReached -= eh;
+        eh += ourCode;
+        return eh;
+    }
+
+    public void EndScreen(ButtonSchema b)
+    {
+        // get the mid row
+        var mr = vpp.transform.Find("MidRow");
+        var sprite = mr.parent.transform.Find("TopRow").Find("Back").GetComponent<Image>().sprite;
+
+        // clear all current children of MidRow i.e. existing buttons
+        foreach (Transform c in mr.transform)
+        {
+            GameObject.Destroy(c.gameObject);
+        }// add the button gameobject and make it child of mr
+
+        var go = new GameObject("Retry Button");
+        go.transform.parent = mr.transform;
+        // give it a canvasrenderer so we can see it
+        go.AddComponent<CanvasRenderer>();
+
+        // give it an image and set it to be the default ui sprite
+        var img = go.AddComponent<Image>();
+        img.type = Image.Type.Sliced;
+        img.sprite = sprite;
+        //img.sprite.
+
+        var vpc = vpp.GetComponent<VideoPlayer>();
+
+        // give it a button script
+        var btn = go.AddComponent<Button>();
+        btn.onClick.AddListener(() =>
+        {
+            go.SetActive(false);
+            GameObject.Destroy(go);
+            SetVideoUrl(vpc, vpUrlQ.Peek());
+            vpc.Play();
+            vpc.loopPointReached += AddLoopPointEventHandler((vp) => GameChoice());
         });
+        
+        // give it a child with a text component for the label
+        var tc = new GameObject("Text");
+        tc.transform.parent = go.transform;
+        var txt = tc.AddComponent<Text>();
+        txt.text = (b.EndScreenMessage == null || b.EndScreenMessage == "") ? "Try again?" : b.EndScreenMessage;
+        txt.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        txt.color = Color.black;
+        txt.fontSize = 34;
+        txt.alignment = TextAnchor.MiddleCenter;
+        txt.horizontalOverflow = HorizontalWrapMode.Overflow;
+        txt.verticalOverflow = VerticalWrapMode.Overflow;
     }
 
     public void LoadSettings()
@@ -340,6 +511,7 @@ public class StartupController : MonoBehaviour
         b1a.volume = asj.button1Volume;
         b2a.volume = asj.button2Volume;
     }
+
     public void SaveSettings()
     {
         var asj = new AudioSettingsJson(mua.volume, b1a.volume, b2a.volume);
@@ -394,6 +566,10 @@ public class StartupController : MonoBehaviour
         b2a = GameObject.Find("Button2Audio").GetComponent<AudioSource>();
         LoadSettings();
         StartCoroutine(IntroAnimation());
+        //var bs = new ButtonSchema();
+        //bs.ButtonType = ButtonType.End.ToString();
+        //bs.Label = "test";
+        //File.WriteAllText(Application.persistentDataPath + "/test.json", JsonUtility.ToJson(bs, true));
     }
 
     // Update is called once per frame

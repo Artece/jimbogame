@@ -1,12 +1,15 @@
 {
-  "Title": "Girl on street",
-  "Subtitle": "Chapter 1",
-  "Description": "Some text to describe the scenario...",
-  "Settings": {
-    "StartingHP": 3,
-    "StartingPoints": 0,
-    "StartingBranch": "A",
-    "StartingPathPosition": 1
-  }
- 
+    "Title": "Girl on street",
+    "Subtitle": "Chapter 1",
+    "Description": "Some text to describe the scenario...",
+    "Settings": {
+        "StartPath": {
+            "Branch": "A",
+            "StartPosition": 1
+        },
+        "StartScore": {
+            "HP": 3,
+            "Points": 0
+        }
+    }
 }
