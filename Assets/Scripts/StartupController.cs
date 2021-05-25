@@ -10,7 +10,7 @@ using Models;
 public class StartupController : MonoBehaviour
 {
     // easily modifiable parameters for animations
-    public float introDur = 2f, pkFlashRate = 2f, menuAnimBgDur = 5f, menuAnimBgTrans = 1f, videoFadeTrans = 1f;
+    public float introDur = 2f, pkFlashRate = 2f, menuAnimBgDur = 5f, menuAnimBgTrans = 1f, videoFadeTrans = 1f, buttonFadeTrans = .25f;
 
     // not implemented yet, list of scenarios
     private List<DirectoryInfo> scDir;
@@ -19,6 +19,7 @@ public class StartupController : MonoBehaviour
     private string selectedScenarioPath;
     private ScoreAdjustment currentScore;
     private StoryPath currentBranchPos;
+    private VideoPlayer.EventHandler lastEh;
 
     // shader background panel, video player panel, menu background panel, studio logo panel, scenario select panel, game settings panel
     private GameObject sbp, vpp, mbp, pkp, ssp, gsp;
@@ -190,7 +191,7 @@ public class StartupController : MonoBehaviour
         pkp.SetActive(false);
 
         // start the fade in of mbp
-        gfx.ForEach((g) => g.CrossFadeAlpha(1f, 1f, false));
+        gfx.ForEach((g) => g.CrossFadeAlpha(1f, qdur, false));
 
         // just experimenting with forking coroutines with lambda exps
         //When(new WaitForSeconds(1f), () => bns.ForEach((b) => b.interactable = true));
@@ -209,7 +210,7 @@ public class StartupController : MonoBehaviour
 
         // make sure to reenable them again ;)
         // much simpler to just wait like this than use When()
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSeconds(qdur);
         bns.ForEach((b) => b.interactable = true);
     }
 
@@ -275,7 +276,7 @@ public class StartupController : MonoBehaviour
         selectedScenarioPath = Application.streamingAssetsPath + "/Scenarios/" + scDir[index].Name + "/";
 
         sbp.SetActive(false);
-        vpp.SetActive(true);
+        //vpp.SetActive(true);
 
         currentBranchPos = selectedScenario.Settings.StartPath;
         currentScore = selectedScenario.Settings.StartScore;
@@ -287,7 +288,8 @@ public class StartupController : MonoBehaviour
         RawImage ri = vpp.GetComponent<RawImage>();
         gfx.ForEach((g) => g.CrossFadeAlpha(0f, 0f, true));
         gfx.Remove(ri);
-        bns.ForEach((b) => b.interactable = false);
+        bns.ForEach((b) => b.gameObject.SetActive(false));
+        vpp.SetActive(true);
 
         var vpc = vpp.GetComponent<VideoPlayer>();
         SetVideoUrl(vpc, selectedScenarioPath + "pre.avi");
@@ -297,8 +299,8 @@ public class StartupController : MonoBehaviour
         yield return new WaitUntil(() => vpc.isPlaying);
         yield return new WaitWhile(() => vpc.isPlaying);
 
+        bns.ForEach((b) => b.gameObject.SetActive(true));
         gfx.ForEach((g) => g.CrossFadeAlpha(1f, 1f, false));
-        bns.ForEach((b) => b.interactable = true);
     }
 
     [System.Serializable]
@@ -319,6 +321,7 @@ public class StartupController : MonoBehaviour
         }
 
         // parse the options file for button layout
+        // have to wrap in an object as JsonUtility doesn't support just arrays to start apparently
         var buttonsJson = "{\"values\":" + File.ReadAllText(selectedScenarioPath + currentBranchPos + "options.json") + "}";
         var gameButtons = new List<ButtonSchema>(((ButtonArrayWrapper)JsonUtility.FromJson(buttonsJson, typeof(ButtonArrayWrapper))).values);
         var vpc = vpp.GetComponent<VideoPlayer>();
@@ -351,12 +354,13 @@ public class StartupController : MonoBehaviour
                 b.Path.Branch = currentBranchPos.Branch;
                 b.Path.StartPosition = currentBranchPos.StartPosition + 1;
             }
-            // wish we could just do btn.colors.disabledColor = Color.white
-            //var colors = ColorBlock.defaultColorBlock;
-            //colors.disabledColor = Color.white;
-            //btn.colors = colors;
 
             var btn = go.GetComponent<Button>();
+            
+            //// wish we could just do btn.colors.disabledColor = Color.white
+            //var colors = btn.colors;
+            //colors.disabledColor = Color.white;
+            //btn.colors = colors;
 
             for (int i = 0; i < btn.onClick.GetPersistentEventCount(); ++i)
             {
@@ -367,12 +371,12 @@ public class StartupController : MonoBehaviour
                 currentScore += b.ScoreAdjustment;
 
                 // get rid of the buttons
+                new List<Button>(mr.transform.GetComponentsInChildren<Button>()).ForEach((b) => b.interactable = false);
                 new List<Graphic>(mr.transform.GetComponentsInChildren<Graphic>()).ForEach((g) =>
                 {
-                    g.CrossFadeAlpha(0f, 1f, false);
-                    When(new WaitForSeconds(1f), () => g.gameObject.SetActive(false));
+                    g.CrossFadeAlpha(0f, buttonFadeTrans, false);
+                    When(new WaitForSeconds(buttonFadeTrans), () => g.gameObject.SetActive(false));
                 });
-                new List<Button>(mr.transform.GetComponentsInChildren<Button>()).ForEach((b) => b.interactable = false);
 
                 // play button sound
                 b1a.Play();
@@ -391,8 +395,10 @@ public class StartupController : MonoBehaviour
                             // use this ending
                             vpc.loopPointReached += AddLoopPointEventHandler((vp) =>
                             {
-                                SetVideoUrl(vp, selectedScenarioPath + "endings/" + ending.VideoFilename);
-                                vp.loopPointReached += (unused) => EndScreen(b);
+                                // don't use setvideourl here because we don't wanna have two jump back two
+                                vpc.url = selectedScenarioPath + "endings/" + ending.VideoFilename;
+                                //SetVideoUrl(vp, selectedScenarioPath + "endings/" + ending.VideoFilename);
+                                vp.loopPointReached += AddLoopPointEventHandler((vp) => EndScreen(b));
                                 vp.Play();
                             });
                             noCondEnding = false;
@@ -408,12 +414,14 @@ public class StartupController : MonoBehaviour
                     if (currentScore.HP < 1 || b.ButtonType == ButtonType.End.ToString())
                     {
                         // lose
-                        vpc.loopPointReached += AddLoopPointEventHandler((vp) => EndScreen(b));
+                        vpc.loopPointReached += AddLoopPointEventHandler((vp) =>
+                        EndScreen(b));
                     }
                     else
                     {
                         // trigger the next screen
-                        vpc.loopPointReached += AddLoopPointEventHandler((vp) => GameChoice());
+                        vpc.loopPointReached += AddLoopPointEventHandler((vp) =>
+                        GameChoice());
                         //vpc.loopPointReached += (DumbStuff() += (vp) => GameChoice());
                         // update the branch pos
                         currentBranchPos = b.Path;
@@ -421,7 +429,7 @@ public class StartupController : MonoBehaviour
                 }
 
                 // play video after delay
-                When(new WaitForSeconds(1f), () => vpc.Play());
+                When(new WaitForSeconds(buttonFadeTrans), () => vpc.Play());
             });
 
             // give it a child with a text component for the label
@@ -439,6 +447,20 @@ public class StartupController : MonoBehaviour
         }//);
     }
 
+    public float doSpeedInsteadOfSkip = 1f;
+
+    public void SkipToEnd(VideoPlayer vpc)
+    {
+        if (doSpeedInsteadOfSkip > 1f)
+        {
+            vpc.playbackSpeed = doSpeedInsteadOfSkip;
+        }
+        else
+        {
+            vpc.frame = (long)(vpc.frameCount - 10);
+        }
+    }
+
     private Queue<string> vpUrlQ;
     private void SetVideoUrl(VideoPlayer vp, string url)
     {
@@ -447,11 +469,17 @@ public class StartupController : MonoBehaviour
         vpUrlQ.Enqueue(url);
     }
 
+    public void RemovelastEh(VideoPlayer vp)
+    {
+        vp.loopPointReached -= lastEh;
+    }
+
     private VideoPlayer.EventHandler AddLoopPointEventHandler(VideoPlayer.EventHandler ourCode)
     {
         VideoPlayer.EventHandler eh = (vp) => { };
         eh += (vp) => vp.loopPointReached -= eh;
         eh += ourCode;
+        lastEh = eh;
         return eh;
     }
 
@@ -557,6 +585,11 @@ public class StartupController : MonoBehaviour
         // grab references to important objects
         sbp = transform.Find("SBP").gameObject;
         vpp = transform.Find("VPP").gameObject;
+        var vpc = vpp.GetComponent<VideoPlayer>();
+        var vpb = vpp.GetComponent<Button>();
+        vpc.loopPointReached += (vp) => vp.playbackSpeed = 1f;
+        vpc.loopPointReached += (vp) => vpb.interactable = false;
+        vpc.started += (vp) => vpb.interactable = true;
         mbp = transform.Find("MBP").gameObject;
         pkp = transform.Find("PKP").gameObject;
         ssp = transform.Find("SSP").gameObject;

@@ -6,6 +6,7 @@ ScriptsOnlyBuild:
     - UnityEditor.U2D.Animation.BoneGizmo
     Unity.2D.IK.Editor.dll:
     - UnityEditor.U2D.IK.IKEditorManager
+    - UnityEditor.U2D.IK.IKGizmos
     Unity.2D.IK.Runtime.dll:
     - UnityEditor.U2D.IK.IKEditorManagerHelper
     Unity.2D.Tilemap.Editor.dll:
@@ -61,31 +62,31 @@ ScriptsOnlyBuild:
     - Class: 104
       Script: {instanceID: 0}
     - Class: 114
-      Script: {instanceID: 1498}
+      Script: {instanceID: 1496}
     - Class: 114
-      Script: {instanceID: 1622}
+      Script: {instanceID: 1620}
     - Class: 114
-      Script: {instanceID: 1666}
+      Script: {instanceID: 1664}
     - Class: 114
-      Script: {instanceID: 1678}
+      Script: {instanceID: 1676}
     - Class: 114
-      Script: {instanceID: 2084}
+      Script: {instanceID: 2082}
     - Class: 114
-      Script: {instanceID: 2238}
+      Script: {instanceID: 2236}
     - Class: 114
-      Script: {instanceID: 2454}
+      Script: {instanceID: 2452}
     - Class: 114
-      Script: {instanceID: 2600}
+      Script: {instanceID: 2598}
     - Class: 114
-      Script: {instanceID: 2770}
+      Script: {instanceID: 2768}
     - Class: 114
-      Script: {instanceID: 2980}
+      Script: {instanceID: 2978}
     - Class: 114
-      Script: {instanceID: 3082}
+      Script: {instanceID: 3080}
     - Class: 114
-      Script: {instanceID: 3418}
+      Script: {instanceID: 3416}
     - Class: 114
-      Script: {instanceID: 3652}
+      Script: {instanceID: 3650}
     - Class: 114
       Script: {instanceID: 4964}
     - Class: 115
@@ -103,8 +104,6 @@ ScriptsOnlyBuild:
     - Class: 223
       Script: {instanceID: 0}
     - Class: 224
-      Script: {instanceID: 0}
-    - Class: 225
       Script: {instanceID: 0}
     - Class: 328
       Script: {instanceID: 0}
@@ -189,7 +188,7 @@ ScriptsOnlyBuild:
     className: Shadow
   - hash:
       serializedVersion: 2
-      Hash: f0786811516f7de8befd7a3e181e567a
+      Hash: 300fd99066f8c288e85f5e81ce65fe34
     assemblyName: Unity.TextMeshPro.dll
     namespaceName: TMPro
     className: TMP_FontAsset
@@ -201,7 +200,7 @@ ScriptsOnlyBuild:
     className: GroupTrack
   - hash:
       serializedVersion: 2
-      Hash: d791aa6007fa3640be1164ea75bb087d
+      Hash: 800c50acba124432abb4cf0d47202e06
     assemblyName: Unity.TextMeshPro.dll
     namespaceName: TMPro
     className: TMP_StyleSheet
@@ -423,7 +422,7 @@ ScriptsOnlyBuild:
     className: Physics2DRaycaster
   - hash:
       serializedVersion: 2
-      Hash: a2612813f45d0ced02c3e4bc9dbea8b4
+      Hash: da4cc51a02ce84afe2cecd27cfe6997a
     assemblyName: Unity.TextMeshPro.dll
     namespaceName: TMPro
     className: TextMeshPro
@@ -453,7 +452,7 @@ ScriptsOnlyBuild:
     className: AudioPlayableAsset
   - hash:
       serializedVersion: 2
-      Hash: 2cd7e7f2720adf1e2f2db0a5bf474b53
+      Hash: 968f8cfaa2403642e0bec962b82a69cb
     assemblyName: Assembly-CSharp.dll
     namespaceName: 
     className: StartupController

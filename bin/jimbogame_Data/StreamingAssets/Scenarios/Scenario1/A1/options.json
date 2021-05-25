@@ -17,7 +17,7 @@
   },
   {
     "ButtonType": "End",
-    "LoseScreenMessage": "GG",
+    "EndScreenMessage": "GG",
     "Label": "game over (no ending)",
     "VideoFilename": "A1choice3.avi"
   },
