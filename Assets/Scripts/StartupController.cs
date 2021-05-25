@@ -534,10 +534,14 @@ public class StartupController : MonoBehaviour
 
     public void LoadSettings()
     {
-        var asj = (AudioSettingsJson)JsonUtility.FromJson(File.ReadAllText(Application.persistentDataPath + "/AudioSettings.json"), typeof(AudioSettingsJson));
-        mua.volume = asj.musicVolume;
-        b1a.volume = asj.button1Volume;
-        b2a.volume = asj.button2Volume;
+        var path = Application.persistentDataPath + "/AudioSettings.json";
+        if (File.Exists(path))
+        {
+            var asj = (AudioSettingsJson)JsonUtility.FromJson(File.ReadAllText(path), typeof(AudioSettingsJson));
+            mua.volume = asj.musicVolume;
+            b1a.volume = asj.button1Volume;
+            b2a.volume = asj.button2Volume;
+        }
     }
 
     public void SaveSettings()
