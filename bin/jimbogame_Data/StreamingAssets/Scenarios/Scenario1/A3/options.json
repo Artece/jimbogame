@@ -1,10 +1,41 @@
 [
   {
-    "Label": "choice 1",
-    "VideoFilename": "A3choice1.avi"
+    "Label": "Let's get nice hotel room. (Score Check)",
+	"ScoreAdjustment": {
+    "Points": 1
+	  },
+    "Videos": [
+      {
+        "WhenPointsAreBetween": [ -100, 1 ],
+        "VideoFilename": [ "A3choice1.png", "A3Choice1Failure.mp4" ]
+      },
+      {
+        "WhenPointsAreBetween": [ 2, 8 ],
+        "VideoFilename": [ "A3choice1.png", "A3Choice1Success.mp4" ]
+      }
+    ],
+	"Endings": [
+      {
+        "WhenPointsAreBetween": [ -100, 1 ],
+		"EndScreenMessage": "Thanks for playing. (Rejected Ending)",
+        "VideoFilename": "RejectedEnding.mp4"
+      },
+      {
+        "WhenPointsAreBetween": [ 2, 8 ],
+		"EndScreenMessage": "Thanks for playing. (Best Ending)",
+        "VideoFilename": "BestEnding.mp4"
+      }
+    ]
   },
   {
-    "Label": "choice 2",
-    "VideoFilename": "A3choice2.avi"
+    "Label": "You should stay with Yuni.",
+    "VideoFilename": [ "A3choice2.png" ],
+    "Endings": [
+      {
+        "WhenPointsAreBetween": [ 0, 2 ],
+		"EndScreenMessage": "Thanks for playing. (Rejected Ending)",
+        "VideoFilename": "RejectedEnding.mp4"
+      }
+      ]
   }
 ]

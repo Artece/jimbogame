@@ -19,23 +19,26 @@ public class StartupController : MonoBehaviour
     private string selectedScenarioPath;
     private ScoreAdjustment currentScore;
     private StoryPath currentBranchPos;
-    private VideoPlayer.EventHandler lastEh;
 
     // shader background panel, video player panel, menu background panel, studio logo panel, scenario select panel, game settings panel
     private GameObject sbp, vpp, mbp, pkp, ssp, gsp;
 
-    private AudioSource mua, b1a, b2a;
+    private Text subtitleText;
+
+    private AudioSource mua, b1a, b2a, via;
 
     private class AudioSettingsJson
     {
         public float musicVolume = .2f;
         public float button1Volume = .2f;
         public float button2Volume = .2f;
-        public AudioSettingsJson(float mv, float b1, float b2)
+        public float videoVolume = .2f;
+        public AudioSettingsJson(float mv, float b1, float b2, float vv)
         {
             musicVolume = mv;
             button1Volume = b1;
             button2Volume = b2;
+            videoVolume = vv;
         }
     }
 
@@ -214,11 +217,17 @@ public class StartupController : MonoBehaviour
         bns.ForEach((b) => b.interactable = true);
     }
 
-    private Sprite LoadSprite(string path)
+    private Texture2D LoadTexture(string path)
     {
         byte[] d = File.ReadAllBytes(path);
         Texture2D tex = new Texture2D(0, 0);
         tex.LoadImage(d);
+        return tex;
+    }
+
+    private Sprite LoadSprite(string path)
+    {
+        var tex = LoadTexture(path);
         var sprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2());
         return sprite;
     }
@@ -226,8 +235,12 @@ public class StartupController : MonoBehaviour
     // not implemented
     public void ParseScenarios()
     {
-        var strs = new string[2]{ "", "" };
-        vpUrlQ = new Queue<string>(strs);
+        mediaQueue = new Queue<string>();
+
+        GameObject.Find("DEBUG").GetComponent<Text>().text = "";
+
+        if (!mua.isPlaying)
+            mua.Play();
 
         // get a list of all the scenarios in the scenarios folder
         DirectoryInfo dir = new DirectoryInfo(Application.streamingAssetsPath + "/Scenarios");
@@ -243,13 +256,13 @@ public class StartupController : MonoBehaviour
             // make the path by combining the scenarios folder, with the scenario folder in question, with the filename
             // this has to be relative to the resources folder because Resources.Load will only look in there
             // Resources.Load also hates file extensions for some inexplicable reason, so beware
-            var path = Application.streamingAssetsPath + "/Scenarios/" + scDir[i].Name;
+            var path = Application.streamingAssetsPath + "/Scenarios/" + scDir[i].Name + "/";
 
             // actually load it
-            var sprite = LoadSprite(path + "/bg.png");
-            var json = File.ReadAllText(path + "/scenario.json");
+            var json = File.ReadAllText(path + "scenario.json");
             ScenarioSchema scenario = (ScenarioSchema)JsonUtility.FromJson(json, typeof(ScenarioSchema));
             scenarios.Add(scenario);
+            var sprite = LoadSprite(path + scenario.Image);
 
             // and assign
             img.sprite = sprite;
@@ -262,11 +275,43 @@ public class StartupController : MonoBehaviour
             buttons[i + 1].interactable = false;
         }
 
+        // recreate video player to guarantee we get rid of dangling event handlers etc
+        var vp = vpp.GetComponent<VideoPlayer>();
+        var vt = vp.targetTexture;
+        Destroy(vp);
+        vp = vpp.AddComponent<VideoPlayer>();
+        vp.audioOutputMode = VideoAudioOutputMode.AudioSource;
+        vp.SetTargetAudioSource(0, via);
+        vp.aspectRatio = VideoAspectRatio.Stretch;
+        vp.targetTexture = (RenderTexture)vt;
+        vp.isLooping = false;
+        vp.skipOnDrop = true;
+        vp.waitForFirstFrame = true;
+        vp.playOnAwake = false;
+
+        // set our image to be videotex again
+        var ri = vpp.GetComponent<RawImage>();
+        ri.texture = vt;
+
+        // flush the video texture to prevent displaying old contents
+        ClearVideoTexture();
+
         new List<Graphic>(vpp.transform.Find("MidRow").GetComponentsInChildren<Graphic>()).ForEach((g) =>
         {
             g.gameObject.SetActive(false);
             GameObject.Destroy(g.gameObject);
         });
+    }
+
+    private void ClearVideoTexture()
+    {
+        var vp = vpp.GetComponent<VideoPlayer>();
+        vp.Stop();
+        var vt = vp.targetTexture;
+        var rt = RenderTexture.active;
+        RenderTexture.active = vt;
+        GL.Clear(true, true, Color.clear);
+        RenderTexture.active = rt;
     }
 
     private IEnumerator LoadScenario(object[] parms)
@@ -278,8 +323,15 @@ public class StartupController : MonoBehaviour
         sbp.SetActive(false);
         //vpp.SetActive(true);
 
-        currentBranchPos = selectedScenario.Settings.StartPath;
-        currentScore = selectedScenario.Settings.StartScore;
+        currentBranchPos = new StoryPath(selectedScenario.Settings.StartingBranch, selectedScenario.Settings.StartingPathPosition);
+        currentScore = new ScoreAdjustment(selectedScenario.Settings.StartingHP, selectedScenario.Settings.StartingPoints);
+
+        mua.Stop();
+
+        GameObject.Find("DEBUG").GetComponent<Text>().text = currentScore.ToString();
+
+        var vpc = vpp.GetComponent<VideoPlayer>();
+        vpc.url = selectedScenarioPath + selectedScenario.IntroVideo;
 
         GameChoice();
 
@@ -288,13 +340,15 @@ public class StartupController : MonoBehaviour
         RawImage ri = vpp.GetComponent<RawImage>();
         gfx.ForEach((g) => g.CrossFadeAlpha(0f, 0f, true));
         gfx.Remove(ri);
-        bns.ForEach((b) => b.gameObject.SetActive(false));
-        vpp.SetActive(true);
-
-        var vpc = vpp.GetComponent<VideoPlayer>();
-        SetVideoUrl(vpc, selectedScenarioPath + "pre.avi");
-        vpc.Play();
+        gfx.Remove(subtitleText);
+        subtitleText.CrossFadeAlpha(1f, 0f, true);
         ri.CrossFadeAlpha(1f, videoFadeTrans, false);
+        bns.ForEach((b) => b.gameObject.SetActive(false));
+        
+        vpp.SetActive(true);
+        string[] vs = { selectedScenario.IntroVideo };
+        AppendMediaQueue(vpc, selectedScenarioPath, vs);
+        PlayMediaQueue(vpc);
 
         yield return new WaitUntil(() => vpc.isPlaying);
         yield return new WaitWhile(() => vpc.isPlaying);
@@ -314,12 +368,24 @@ public class StartupController : MonoBehaviour
         var mr = vpp.transform.Find("MidRow");
         var sprite = mr.parent.transform.Find("TopRow").Find("Back").GetComponent<Image>().sprite;
 
+        foreach (var sc in SubCoroutines)
+        {
+            StopCoroutine(sc);
+        }
+        SubCoroutines.Clear();
+
         // clear all current children of MidRow i.e. existing buttons
         foreach (Transform c in mr.transform)
         {
             GameObject.Destroy(c.gameObject);
         }
 
+        if (!Directory.Exists(selectedScenarioPath + currentBranchPos))
+        {
+            currentBranchPos.StartPosition--;
+            EndScreen();
+            return;
+        }
         // parse the options file for button layout
         // have to wrap in an object as JsonUtility doesn't support just arrays to start apparently
         var buttonsJson = "{\"values\":" + File.ReadAllText(selectedScenarioPath + currentBranchPos + "options.json") + "}";
@@ -327,6 +393,8 @@ public class StartupController : MonoBehaviour
         var vpc = vpp.GetComponent<VideoPlayer>();
 
         var bb = vpp.transform.Find("TopRow").transform.Find("Back").gameObject;
+
+        retryVideo = vpc.url;
 
         // add a new child to MidRow for each ButtonSchema
         //gameButtons.ForEach((b) =>
@@ -369,6 +437,7 @@ public class StartupController : MonoBehaviour
 
             btn.onClick.AddListener(() => {
                 currentScore += b.ScoreAdjustment;
+                GameObject.Find("DEBUG").GetComponent<Text>().text = currentScore.ToString();
 
                 // get rid of the buttons
                 new List<Button>(mr.transform.GetComponentsInChildren<Button>()).ForEach((b) => b.interactable = false);
@@ -381,55 +450,60 @@ public class StartupController : MonoBehaviour
                 // play button sound
                 b1a.Play();
 
-                // update video player clip
-                SetVideoUrl(vpc, selectedScenarioPath + currentBranchPos + b.VideoFilename);
-
-                var noCondEnding = true;
-                if (b.Endings.Count > 0)
+                When(new WaitForSeconds(buttonFadeTrans), () =>
                 {
-                    // endings
-                    foreach (var ending in b.Endings)
+                    System.Action action = null;
+                    if (b.Videos.Count > 0)
                     {
-                        if (currentScore.Points >= ending.WhenPointsAreBetween[0] && currentScore.Points < ending.WhenPointsAreBetween[1])
+                        foreach (var video in b.Videos)
                         {
-                            // use this ending
-                            vpc.loopPointReached += AddLoopPointEventHandler((vp) =>
+                            if (currentScore.Points >= video.WhenPointsAreBetween[0] && currentScore.Points < video.WhenPointsAreBetween[1])
                             {
-                                // don't use setvideourl here because we don't wanna have two jump back two
-                                vpc.url = selectedScenarioPath + "endings/" + ending.VideoFilename;
-                                //SetVideoUrl(vp, selectedScenarioPath + "endings/" + ending.VideoFilename);
-                                vp.loopPointReached += AddLoopPointEventHandler((vp) => EndScreen(b));
-                                vp.Play();
-                            });
-                            noCondEnding = false;
-                            break;
+                                // use this video
+                                string[] urls = video.VideoFilename.ToArray();
+                                AppendMediaQueue(vpc, selectedScenarioPath + currentBranchPos, urls);
+                                break;
+                            }
                         }
                     }
-                        
-                }
 
-                if (noCondEnding)
-                {
-                    // detect health etc.
-                    if (currentScore.HP < 1 || b.ButtonType == ButtonType.End.ToString())
+                    var noCondEnding = true;
+                    if (b.Endings.Count > 0)
                     {
-                        // lose
-                        vpc.loopPointReached += AddLoopPointEventHandler((vp) =>
-                        EndScreen(b));
+                        // endings
+                        foreach (var ending in b.Endings)
+                        {
+                            if (currentScore.Points >= ending.WhenPointsAreBetween[0] && currentScore.Points < ending.WhenPointsAreBetween[1])
+                            {
+                                // use this ending
+                                string[] urls = { ending.VideoFilename };
+                                AppendMediaQueue(vpc, selectedScenarioPath + "endings/", urls);
+                                action = () => EndScreen(ending.EndScreenMessage);
+                                noCondEnding = false;
+                                break;
+                            }
+                        }
                     }
-                    else
-                    {
-                        // trigger the next screen
-                        vpc.loopPointReached += AddLoopPointEventHandler((vp) =>
-                        GameChoice());
-                        //vpc.loopPointReached += (DumbStuff() += (vp) => GameChoice());
-                        // update the branch pos
-                        currentBranchPos = b.Path;
-                    }
-                }
 
-                // play video after delay
-                When(new WaitForSeconds(buttonFadeTrans), () => vpc.Play());
+                    if (noCondEnding)
+                    {
+                        // detect health etc.
+                        if (currentScore.HP < 1 || b.ButtonType == ButtonType.End.ToString())
+                        {
+                            // lose
+                            AppendMediaQueue(vpc, selectedScenarioPath + currentBranchPos, b.VideoFilename);
+                            action = () => EndScreen(b.EndScreenMessage);
+                        }
+                        else
+                        {
+                            AppendMediaQueue(vpc, selectedScenarioPath + currentBranchPos, b.VideoFilename);
+                            action = () => GameChoice();
+                            currentBranchPos = b.Path;
+                        }
+                    }
+
+                    PlayMediaQueue(vpc, action);
+                });
             });
 
             // give it a child with a text component for the label
@@ -449,41 +523,142 @@ public class StartupController : MonoBehaviour
 
     public float doSpeedInsteadOfSkip = 1f;
 
-    public void SkipToEnd(VideoPlayer vpc)
+    public void SkipToEnd()
     {
+        var vp = vpp.GetComponent<VideoPlayer>();
         if (doSpeedInsteadOfSkip > 1f)
         {
-            vpc.playbackSpeed = doSpeedInsteadOfSkip;
+            vp.playbackSpeed = doSpeedInsteadOfSkip;
         }
         else
         {
-            vpc.frame = (long)(vpc.frameCount - 10);
+            vp.frame = (long)(vp.frameCount);
+            //vpc.frame = (long)(vpc.frameCount - 10);
         }
     }
 
-    private Queue<string> vpUrlQ;
-    private void SetVideoUrl(VideoPlayer vp, string url)
+    private List<IEnumerator> SubCoroutines;
+    private void PlaySubtitles(VideoPlayer vp)
     {
+        var foo = vp.url.Split('/');
+        var bar = foo[foo.Length - 1].Split('.');
+        var baz = selectedScenarioPath + "Subtitles/" + bar[0] + ".srt";
+        var contents = File.ReadAllText(baz);
+        contents = contents.Trim();
+        var sections = contents.Split(new string[] { System.Environment.NewLine + System.Environment.NewLine }, System.StringSplitOptions.RemoveEmptyEntries);
+        foreach (var s in sections)
+        {
+            var lines = s.Split('\n');
+            var times = lines[1].Split(new string[] { " --> " }, System.StringSplitOptions.None);
+            var sta = times[0].Split(':');
+            var sta2 = sta[2].Split(',');
+            float start = float.Parse(sta[0]) * 3600f + float.Parse(sta[1]) * 60f + float.Parse(sta2[0]) + float.Parse(sta2[1]) * .001f;
+            var fin = times[1].Split(':');
+            var fin2 = fin[2].Split(',');
+            float finish = float.Parse(fin[0]) * 3600f + float.Parse(fin[1]) * 60f + float.Parse(fin2[0]) + float.Parse(fin2[1]) * .001f;
+            var sub = lines[2];
+            var staIe = _When(new WaitForSeconds(start), () =>
+            {
+                subtitleText.text = sub;
+                //print(sub);
+            });
+            var finIe = _When(new WaitForSeconds(finish), () =>
+            {
+                subtitleText.text = "";
+                //print(sub + " | done");
+            });
+            SubCoroutines.Add(staIe);
+            SubCoroutines.Add(finIe);
+            StartCoroutine(staIe);
+            StartCoroutine(finIe);
+            vp.loopPointReached += AddVideoEventHandler((vp) =>
+            {
+                subtitleText.text = "";
+                StopCoroutine(staIe);
+                StopCoroutine(finIe);
+                SubCoroutines.Remove(staIe);
+                SubCoroutines.Remove(finIe);
+            });
+        }
+    }
+
+    private bool PlayMediaUrl(VideoPlayer vp, string url)
+    {
+        if (url.EndsWith("png"))
+        {
+            var tex = LoadTexture(url);
+            var ri = vpp.GetComponent<RawImage>();
+            var vt = ri.texture;
+            ri.texture = tex;
+            ClearVideoTexture();
+            vp.started += AddVideoEventHandler((vp) => ri.texture = vt);
+            return true;
+        }
         vp.url = url;
-        vpUrlQ.Dequeue();
-        vpUrlQ.Enqueue(url);
+        PlaySubtitles(vp);
+        vp.Play();
+        return false;
     }
 
-    public void RemovelastEh(VideoPlayer vp)
+    private string retryVideo;
+    private Queue<string> mediaQueue;
+
+    private void PlayMediaQueue(VideoPlayer vp, System.Action action = null)
     {
-        vp.loopPointReached -= lastEh;
+        var png = PlayMediaUrl(vp, mediaQueue.Dequeue());
+        if (png)
+        {
+            if (mediaQueue.Count > 1)
+            {
+                vp.url = mediaQueue.Dequeue();
+                When(new WaitForSeconds(1f), () =>
+                {
+                    vp.Play();
+                    PlaySubtitles(vp);
+                });
+            }
+            else
+            {
+                When(new WaitForSeconds(1f), action);
+            }
+        }
+        vp.loopPointReached += AddVideoEventHandler((vp) =>
+        {
+            if (mediaQueue.Count < 1)
+            {
+                if (action != null)
+                {
+                    action();
+                }
+            }
+            else
+            {
+                PlayMediaQueue(vp, action);
+            }
+        });
     }
 
-    private VideoPlayer.EventHandler AddLoopPointEventHandler(VideoPlayer.EventHandler ourCode)
+    private void AppendMediaQueue(VideoPlayer vp, string path, string[] urls)
+    {
+        if (mediaQueue == null)
+        {
+            mediaQueue = new Queue<string>();
+        }
+        foreach (var s in urls)
+        {
+            mediaQueue.Enqueue(path + s);
+        }
+    }
+
+    private VideoPlayer.EventHandler AddVideoEventHandler(VideoPlayer.EventHandler ourCode)
     {
         VideoPlayer.EventHandler eh = (vp) => { };
         eh += (vp) => vp.loopPointReached -= eh;
         eh += ourCode;
-        lastEh = eh;
         return eh;
     }
 
-    public void EndScreen(ButtonSchema b)
+    public void EndScreen(string EndScreenMessage = null)
     {
         // get the mid row
         var mr = vpp.transform.Find("MidRow");
@@ -514,16 +689,15 @@ public class StartupController : MonoBehaviour
         {
             go.SetActive(false);
             GameObject.Destroy(go);
-            SetVideoUrl(vpc, vpUrlQ.Peek());
-            vpc.Play();
-            vpc.loopPointReached += AddLoopPointEventHandler((vp) => GameChoice());
+            PlayMediaUrl(vpc, retryVideo);
+            vpc.loopPointReached += AddVideoEventHandler((vp) => GameChoice());
         });
         
         // give it a child with a text component for the label
         var tc = new GameObject("Text");
         tc.transform.parent = go.transform;
         var txt = tc.AddComponent<Text>();
-        txt.text = (b.EndScreenMessage == null || b.EndScreenMessage == "") ? "Try again?" : b.EndScreenMessage;
+        txt.text = (EndScreenMessage == null || EndScreenMessage == "") ? "Try again?" : EndScreenMessage;
         txt.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
         txt.color = Color.black;
         txt.fontSize = 34;
@@ -541,12 +715,13 @@ public class StartupController : MonoBehaviour
             mua.volume = asj.musicVolume;
             b1a.volume = asj.button1Volume;
             b2a.volume = asj.button2Volume;
+            via.volume = asj.videoVolume;
         }
     }
 
     public void SaveSettings()
     {
-        var asj = new AudioSettingsJson(mua.volume, b1a.volume, b2a.volume);
+        var asj = new AudioSettingsJson(mua.volume, b1a.volume, b2a.volume, via.volume);
         var str = JsonUtility.ToJson(asj);
         File.WriteAllText(Application.persistentDataPath + "/AudioSettings.json", str);
     }
@@ -581,7 +756,7 @@ public class StartupController : MonoBehaviour
      * |  __|| . ` | | | |    /  \ /   |  __/| | | | | | | . ` | | |  
      * | |___| |\  | | | | |\ \  | |   | |   \ \_/ /_| |_| |\  | | |  
      * \____/\_| \_/ \_/ \_| \_| \_/   \_|    \___/ \___/\_| \_/ \_/  
-     */                                                        
+     */
 
     // Start is called before the first frame update
     void Start()
@@ -594,6 +769,7 @@ public class StartupController : MonoBehaviour
         vpc.loopPointReached += (vp) => vp.playbackSpeed = 1f;
         vpc.loopPointReached += (vp) => vpb.interactable = false;
         vpc.started += (vp) => vpb.interactable = true;
+        subtitleText = vpp.transform.Find("BotRow").GetComponentInChildren<Text>();
         mbp = transform.Find("MBP").gameObject;
         pkp = transform.Find("PKP").gameObject;
         ssp = transform.Find("SSP").gameObject;
@@ -601,8 +777,10 @@ public class StartupController : MonoBehaviour
         mua = GameObject.Find("MusicAudio").GetComponent<AudioSource>();
         b1a = GameObject.Find("Button1Audio").GetComponent<AudioSource>();
         b2a = GameObject.Find("Button2Audio").GetComponent<AudioSource>();
+        via = GameObject.Find("VideoAudio").GetComponent<AudioSource>();
         LoadSettings();
         StartCoroutine(IntroAnimation());
+        SubCoroutines = new List<IEnumerator>();
         //var bs = new ButtonSchema();
         //bs.ButtonType = ButtonType.End.ToString();
         //bs.Label = "test";

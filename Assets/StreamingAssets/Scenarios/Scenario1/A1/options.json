@@ -1,50 +1,36 @@
 [
   {
-    "Label": "add 1 point",
+    "Label": "How about I treat you to a nice veal dinner.  ❤  + 1",
     "ScoreAdjustment": {
-      "HP": 0,
-      "Points": 1
+    "Points": 1
     },
-    "VideoFilename": "A1choice1.avi"
+    "VideoFilename": [ "A1choice1.png", "A1closer.mp4", "A2opener.mp4" ]
   },
   {
-    "Label": "-1 HP",
+    "Label": "Let's go bowling, cousin. ❤  + 1",
     "ScoreAdjustment": {
-      "HP": -1,
-      "Points": 0
+    "Points": 1
     },
-    "VideoFilename": "A1choice2.avi"
+    "VideoFilename": [ "A1choice2.png", "A1closer.mp4", "A2opener.mp4" ]
   },
   {
-    "ButtonType": "End",
-    "EndScreenMessage": "GG",
-    "Label": "game over (no ending)",
-    "VideoFilename": "A1choice3.avi"
-  },
-  {
-    "Label": "game over (conditional ending)",
-    "VideoFilename": "A1choice4.avi",
-    "Endings": [
-      {
-        "WhenPointsAreBetween": [ 0, 3 ],
-        "VideoFilename": "badending.avi"
-      },
-      {
-        "WhenPointsAreBetween": [ 3, 8 ],
-        "VideoFilename": "goodending.avi"
-      }
-    ]
-  },
-  {
+     "Label": "Time for your spanish lessons. ❤  + 0",
     "ScoreAdjustment": {
-      "HP": 0,
-      "Points": 0
+    "Points": 0
     },
-    "Path": {
-      "Branch": "B",
-      "StartPosition": "1"
+    "VideoFilename": [ "A1choice3.png", "A1closer.mp4", "A2opener.mp4" ]
+  },
+  {
+    "Label": "Wanna go underwear shopping? ❤ - 10",
+    "ScoreAdjustment": {
+    "Points": -10
     },
-    "Label": "jump to branch B1",
-    "VideoFilename": "A1choice5.avi"
+    "VideoFilename": [ "A1choice4.png", "A1closer.mp4", "A2opener.mp4" ]
+  },
+  {
+    "Label": "Break out those 9-inch heels and step on my balls. (END)",
+	"ButtonType": "End",
+    "EndScreenMessage": "Try again?",
+    "VideoFilename": [ "A1choice5.png" ]
   }
 ]

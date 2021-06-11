@@ -1,19 +1,26 @@
 [
   {
-    "Label": "continue",
-    "VideoFilename": "A2choice1.avi"
-  },
-  {
-    "Label": "-1 HP",
+    "Label": "Sure, give me a taste of that shit.",
     "ScoreAdjustment": {
-      "HP": -1,
-      "Points": 0
+      "HP": 0,
+      "Points": 1
     },
-    "VideoFilename": "A2choice2.avi"
+    "VideoFilename": [ "A2choice1.png", "A2closer.mp4", "A3opener.mp4" ]
   },
   {
-    "ButtonType": "End",
-    "Label": "game over (no ending)",
-    "VideoFilename": "A2choice3.avi"
+    "Label": "Fuck no. I'm out.",
+    "VideoFilename": [ "A2choice2.png" ],
+    "Endings": [
+      {
+        "WhenPointsAreBetween": [ -100, 3 ],
+		"EndScreenMessage": "Thanks for playing. (Solo Ending)",
+        "VideoFilename": "SoloEnding.mp4"
+      }         ]
+  },
+  {
+    "Label": "You can stick that coffee back up up in your ass where it belongs. (END)",
+	"ButtonType": "End",
+    "EndScreenMessage": "Try again?",
+    "VideoFilename": [ "A2choice3.png" ]
   }
 ]

@@ -1,15 +1,14 @@
 {
-    "Title": "Girl on street",
-    "Subtitle": "Chapter 1",
-    "Description": "Some text to describe the scenario...",
-    "Settings": {
-        "StartPath": {
-            "Branch": "A",
-            "StartPosition": 1
-        },
-        "StartScore": {
-            "HP": 3,
-            "Points": 0
-        }
-    }
+  "Title": "The First Date",
+  "Subtitle": "Chapter 1",
+  "Description": "You are a lucky Tawainese frog who gets to spend the night with your friend JinJin.",
+  "Image": "bg.png",
+  "IntroVideo": "pre.mp4",
+  "Settings": {
+    "StartingHP": 3,
+    "StartingPoints": 0,
+    "StartingBranch": "A",
+    "StartingPathPosition": 1
+  }
+ 
 }

@@ -15,21 +15,18 @@ namespace Models
     [Serializable]
     public class ScenarioSchema
     {
-        public string Title;
-        public string Subtitle;
-        public string Description;
+        public string Title, Subtitle, Description;
+        public string Image, IntroVideo;
         public ScenarioSettings Settings;
     }
 
     [Serializable]
     public class ScenarioSettings
     {
-        public StoryPath StartPath;
-        public ScoreAdjustment StartScore;
-        //public int StartingHP;
-        //public int StartingPoints;
-        //public string StartingBranch;
-        //public int StartingPathPosition;
+        public int StartingHP;
+        public int StartingPoints;
+        public string StartingBranch;
+        public int StartingPathPosition;
     }
 
     // used to deserialize from json
@@ -38,10 +35,11 @@ namespace Models
     {
         public string ButtonType;
         public string Label;
-        public string VideoFilename;
+        public string[] VideoFilename;
         public StoryPath Path;
         public ScoreAdjustment ScoreAdjustment;
         public List<Ending> Endings;
+        public List<Video> Videos;
         public string EndScreenMessage;
     }
 
@@ -50,6 +48,14 @@ namespace Models
     {
         public List<int> WhenPointsAreBetween;
         public string VideoFilename;
+        public string EndScreenMessage;
+    }
+
+    [Serializable]
+    public class Video
+    {
+        public List<int> WhenPointsAreBetween;
+        public List<string> VideoFilename;
     }
 
     [Serializable]
@@ -57,6 +63,11 @@ namespace Models
     {
         public string Branch;
         public int StartPosition;
+        public StoryPath(string branch, int startPos)
+        {
+            Branch = branch;
+            StartPosition = startPos;
+        }
         public override string ToString() => Branch + StartPosition + "/";
     }
 
@@ -71,6 +82,7 @@ namespace Models
             Points = points;
         }
         public static ScoreAdjustment operator +(ScoreAdjustment a, ScoreAdjustment b) => new ScoreAdjustment(a.HP + b.HP, a.Points + b.Points);
+        public override string ToString() => "HP: " + HP + " Points: " + Points;
     }
 
     [Serializable]

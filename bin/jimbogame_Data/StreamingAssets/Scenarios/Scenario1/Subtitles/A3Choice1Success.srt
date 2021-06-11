@@ -1,0 +1,11 @@
+1
+00:00:00,450 --> 00:00:01,600
+But, anyway.
+
+2
+00:00:01,600 --> 00:00:03,100
+I might go to hotel.
+
+3
+00:00:03,700 --> 00:00:06,800
+But then, I will probably wear the same clothes.
