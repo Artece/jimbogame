@@ -8,6 +8,7 @@ namespace Models
     public enum ButtonType
     {
         Default,
+        Outcome,
         End // instant game over
     }
 
@@ -82,7 +83,8 @@ namespace Models
             Points = points;
         }
         public static ScoreAdjustment operator +(ScoreAdjustment a, ScoreAdjustment b) => new ScoreAdjustment(a.HP + b.HP, a.Points + b.Points);
-        public override string ToString() => "HP: " + HP + " Points: " + Points;
+        //public override string ToString() => "HP: " + HP + " Points: " + Points;
+        public override string ToString() => "Points: " + Points + " ";
     }
 
     [Serializable]

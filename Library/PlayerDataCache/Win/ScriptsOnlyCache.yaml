@@ -33,9 +33,11 @@ ScriptsOnlyBuild:
     - UnityEngine.UI.HorizontalLayoutGroup
     - UnityEngine.UI.Image
     - UnityEngine.UI.LayoutElement
+    - UnityEngine.UI.Outline
     - UnityEngine.UI.RawImage
     - UnityEngine.UI.Slider
     - UnityEngine.UI.Text
+    - UnityEngine.UI.Toggle
     - UnityEngine.UI.VerticalLayoutGroup
   sceneClasses:
     Assets/Scenes/SampleScene.unity:
@@ -64,6 +66,8 @@ ScriptsOnlyBuild:
     - Class: 114
       Script: {instanceID: 1496}
     - Class: 114
+      Script: {instanceID: 1608}
+    - Class: 114
       Script: {instanceID: 1620}
     - Class: 114
       Script: {instanceID: 1664}
@@ -83,6 +87,8 @@ ScriptsOnlyBuild:
       Script: {instanceID: 2978}
     - Class: 114
       Script: {instanceID: 3080}
+    - Class: 114
+      Script: {instanceID: 3346}
     - Class: 114
       Script: {instanceID: 3416}
     - Class: 114

@@ -1,6 +1,7 @@
 [
   {
     "Label": "Let's get nice hotel room. (Score Check)",
+    "ButtonType":  "Outcome",
 	"ScoreAdjustment": {
     "Points": 1
 	  },
@@ -29,10 +30,11 @@
   },
   {
     "Label": "You should stay with Yuni.",
+    "ButtonType":  "Outcome",
     "VideoFilename": [ "A3choice2.png" ],
     "Endings": [
       {
-        "WhenPointsAreBetween": [ 0, 2 ],
+        "WhenPointsAreBetween": [ -100, 100 ],
 		"EndScreenMessage": "Thanks for playing. (Rejected Ending)",
         "VideoFilename": "RejectedEnding.mp4"
       }

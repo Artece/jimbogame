@@ -9,6 +9,7 @@
   },
   {
     "Label": "Fuck no. I'm out.",
+    "ButtonType":  "Outcome",
     "VideoFilename": [ "A2choice2.png" ],
     "Endings": [
       {

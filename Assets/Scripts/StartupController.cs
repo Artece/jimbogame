@@ -12,6 +12,8 @@ public class StartupController : MonoBehaviour
     // easily modifiable parameters for animations
     public float introDur = 2f, pkFlashRate = 2f, menuAnimBgDur = 5f, menuAnimBgTrans = 1f, videoFadeTrans = 1f, buttonFadeTrans = .25f;
 
+    public bool showScore { get; set; }
+
     // not implemented yet, list of scenarios
     private List<DirectoryInfo> scDir;
     private List<ScenarioSchema> scenarios;
@@ -26,21 +28,6 @@ public class StartupController : MonoBehaviour
     private Text subtitleText;
 
     private AudioSource mua, b1a, b2a, via;
-
-    private class AudioSettingsJson
-    {
-        public float musicVolume = .2f;
-        public float button1Volume = .2f;
-        public float button2Volume = .2f;
-        public float videoVolume = .2f;
-        public AudioSettingsJson(float mv, float b1, float b2, float vv)
-        {
-            musicVolume = mv;
-            button1Volume = b1;
-            button2Volume = b2;
-            videoVolume = vv;
-        }
-    }
 
     // background panel 0 and 1, for menu screen
     private Image bp0, bp1;
@@ -328,7 +315,10 @@ public class StartupController : MonoBehaviour
 
         mua.Stop();
 
-        GameObject.Find("DEBUG").GetComponent<Text>().text = currentScore.ToString();
+        if (showScore)
+        {
+            GameObject.Find("DEBUG").GetComponent<Text>().text = currentScore.ToString();
+        }
 
         var vpc = vpp.GetComponent<VideoPlayer>();
         vpc.url = selectedScenarioPath + selectedScenario.IntroVideo;
@@ -437,7 +427,10 @@ public class StartupController : MonoBehaviour
 
             btn.onClick.AddListener(() => {
                 currentScore += b.ScoreAdjustment;
-                GameObject.Find("DEBUG").GetComponent<Text>().text = currentScore.ToString();
+                if (showScore)
+                {
+                    GameObject.Find("DEBUG").GetComponent<Text>().text = currentScore.ToString();
+                }
 
                 // get rid of the buttons
                 new List<Button>(mr.transform.GetComponentsInChildren<Button>()).ForEach((b) => b.interactable = false);
@@ -478,7 +471,7 @@ public class StartupController : MonoBehaviour
                                 // use this ending
                                 string[] urls = { ending.VideoFilename };
                                 AppendMediaQueue(vpc, selectedScenarioPath + "endings/", urls);
-                                action = () => EndScreen(ending.EndScreenMessage);
+                                action = () => EndScreen(ending.EndScreenMessage, b.ButtonType);
                                 noCondEnding = false;
                                 break;
                             }
@@ -492,7 +485,7 @@ public class StartupController : MonoBehaviour
                         {
                             // lose
                             AppendMediaQueue(vpc, selectedScenarioPath + currentBranchPos, b.VideoFilename);
-                            action = () => EndScreen(b.EndScreenMessage);
+                            action = () => EndScreen(b.EndScreenMessage, b.ButtonType);
                         }
                         else
                         {
@@ -519,6 +512,72 @@ public class StartupController : MonoBehaviour
             //txt.horizontalOverflow = HorizontalWrapMode.Overflow;
             //txt.verticalOverflow = VerticalWrapMode.Overflow;
         }//);
+    }
+
+    public void EndScreen(string EndScreenMessage = null, string buttonType = null)
+    {
+        // get the mid row
+        var mr = vpp.transform.Find("MidRow");
+        var sprite = mr.parent.transform.Find("TopRow").Find("Back").GetComponent<Image>().sprite;
+
+        // clear all current children of MidRow i.e. existing buttons
+        foreach (Transform c in mr.transform)
+        {
+            GameObject.Destroy(c.gameObject);
+        }// add the button gameobject and make it child of mr
+
+        var go = new GameObject("Retry Button");
+        go.transform.parent = mr.transform;
+        // give it a canvasrenderer so we can see it
+        go.AddComponent<CanvasRenderer>();
+
+        // give it an image and set it to be the default ui sprite
+        var img = go.AddComponent<Image>();
+        img.type = Image.Type.Sliced;
+        img.sprite = sprite;
+        //img.sprite.
+
+        var vpc = vpp.GetComponent<VideoPlayer>();
+
+        // give it a button script
+        var btn = go.AddComponent<Button>();
+
+        if (buttonType == null || buttonType == ButtonType.Outcome.ToString())
+        {
+            btn.onClick.AddListener(() =>
+            {
+                GameObject.Find("DEBUG").GetComponent<Text>().text = "";
+                go.SetActive(false);
+                GameObject.Destroy(go);
+                vpp.SetActive(false);
+                sbp.SetActive(true);
+                mbp.SetActive(true);
+                b2a.Play();
+                mua.Play();
+            });
+        }
+        else if (buttonType == ButtonType.End.ToString())
+        {
+            btn.onClick.AddListener(() =>
+            {
+                go.SetActive(false);
+                GameObject.Destroy(go);
+                PlayMediaUrl(vpc, retryVideo);
+                vpc.loopPointReached += AddVideoEventHandler((vp) => GameChoice());
+            });
+        }
+
+        // give it a child with a text component for the label
+        var tc = new GameObject("Text");
+        tc.transform.parent = go.transform;
+        var txt = tc.AddComponent<Text>();
+        txt.text = (EndScreenMessage == null || EndScreenMessage == "") ? "Try again?" : EndScreenMessage;
+        txt.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        txt.color = Color.black;
+        txt.fontSize = 34;
+        txt.alignment = TextAnchor.MiddleCenter;
+        txt.horizontalOverflow = HorizontalWrapMode.Overflow;
+        txt.verticalOverflow = VerticalWrapMode.Overflow;
     }
 
     public float doSpeedInsteadOfSkip = 1f;
@@ -557,15 +616,19 @@ public class StartupController : MonoBehaviour
             var fin2 = fin[2].Split(',');
             float finish = float.Parse(fin[0]) * 3600f + float.Parse(fin[1]) * 60f + float.Parse(fin2[0]) + float.Parse(fin2[1]) * .001f;
             var sub = lines[2];
-            var staIe = _When(new WaitForSeconds(start), () =>
+            print("scheduled start time: " + start + " | scheduled finish time: " + finish + " | text to display: " + sub);
+            var eps = 0.05f;
+            // is below a race condition? will try adding an eps to start
+            // might need to consider a queue of some kind here
+            var staIe = _When(new WaitForSeconds(start + eps), () =>
             {
                 subtitleText.text = sub;
-                //print(sub);
+                print("start time: " + start + " reached, displaying text: " + sub);
             });
             var finIe = _When(new WaitForSeconds(finish), () =>
             {
                 subtitleText.text = "";
-                //print(sub + " | done");
+                print("finish time: " + start + " reached, clearing text: " + sub);
             });
             SubCoroutines.Add(staIe);
             SubCoroutines.Add(finIe);
@@ -584,7 +647,10 @@ public class StartupController : MonoBehaviour
 
     private bool PlayMediaUrl(VideoPlayer vp, string url)
     {
-        if (url.EndsWith("png"))
+        List<string> supportedTypes = new List<string>(new string[]{"asf","avi" ,"dv " ,"m4v" ,"mov" ,"mp4" ,"mpg" ,"mpeg","ogv" ,"vp8" ,"webm","wmv"});
+        var ext = url.Split('.')[1];
+        // check if file ext is supported video type, if not assume it's an image
+        if (!supportedTypes.Contains(ext))
         {
             var tex = LoadTexture(url);
             var ri = vpp.GetComponent<RawImage>();
@@ -658,72 +724,53 @@ public class StartupController : MonoBehaviour
         return eh;
     }
 
-    public void EndScreen(string EndScreenMessage = null)
+    private VideoPlayer.ErrorEventHandler AddVideoErrorEventHandler(VideoPlayer.ErrorEventHandler ourCode)
     {
-        // get the mid row
-        var mr = vpp.transform.Find("MidRow");
-        var sprite = mr.parent.transform.Find("TopRow").Find("Back").GetComponent<Image>().sprite;
+        VideoPlayer.ErrorEventHandler eh = (vp, s) => { };
+        eh += (vp, s) => vp.errorReceived -= eh;
+        eh += ourCode;
+        return eh;
+    }
 
-        // clear all current children of MidRow i.e. existing buttons
-        foreach (Transform c in mr.transform)
+    private class SettingsJson
+    {
+        public float musicVolume = .2f;
+        public float buttonVolume = .2f;
+        public float videoVolume = .2f;
+        public bool showScore = true;
+        public SettingsJson(float mv, float bv, float vv, bool ss)
         {
-            GameObject.Destroy(c.gameObject);
-        }// add the button gameobject and make it child of mr
-
-        var go = new GameObject("Retry Button");
-        go.transform.parent = mr.transform;
-        // give it a canvasrenderer so we can see it
-        go.AddComponent<CanvasRenderer>();
-
-        // give it an image and set it to be the default ui sprite
-        var img = go.AddComponent<Image>();
-        img.type = Image.Type.Sliced;
-        img.sprite = sprite;
-        //img.sprite.
-
-        var vpc = vpp.GetComponent<VideoPlayer>();
-
-        // give it a button script
-        var btn = go.AddComponent<Button>();
-        btn.onClick.AddListener(() =>
-        {
-            go.SetActive(false);
-            GameObject.Destroy(go);
-            PlayMediaUrl(vpc, retryVideo);
-            vpc.loopPointReached += AddVideoEventHandler((vp) => GameChoice());
-        });
-        
-        // give it a child with a text component for the label
-        var tc = new GameObject("Text");
-        tc.transform.parent = go.transform;
-        var txt = tc.AddComponent<Text>();
-        txt.text = (EndScreenMessage == null || EndScreenMessage == "") ? "Try again?" : EndScreenMessage;
-        txt.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        txt.color = Color.black;
-        txt.fontSize = 34;
-        txt.alignment = TextAnchor.MiddleCenter;
-        txt.horizontalOverflow = HorizontalWrapMode.Overflow;
-        txt.verticalOverflow = VerticalWrapMode.Overflow;
+            musicVolume = mv;
+            buttonVolume = bv;
+            videoVolume = vv;
+            showScore = ss;
+        }
     }
 
     public void LoadSettings()
     {
-        var path = Application.persistentDataPath + "/AudioSettings.json";
+        var path = Application.persistentDataPath + "/Settings.json";
         if (File.Exists(path))
         {
-            var asj = (AudioSettingsJson)JsonUtility.FromJson(File.ReadAllText(path), typeof(AudioSettingsJson));
+            var asj = (SettingsJson)JsonUtility.FromJson(File.ReadAllText(path), typeof(SettingsJson));
             mua.volume = asj.musicVolume;
-            b1a.volume = asj.button1Volume;
-            b2a.volume = asj.button2Volume;
+            b1a.volume = asj.buttonVolume;
+            b2a.volume = asj.buttonVolume;
             via.volume = asj.videoVolume;
+            showScore = asj.showScore;
         }
+        var mr = gsp.transform.Find("MidRow");
+        mr.Find("mv").Find("Slider").gameObject.GetComponent<Slider>().value = mua.volume;
+        mr.Find("bv").Find("Slider").gameObject.GetComponent<Slider>().value = b1a.volume;
+        mr.Find("vv").Find("Slider").gameObject.GetComponent<Slider>().value = via.volume;
+        mr.Find("ss").gameObject.GetComponent<Toggle>().isOn = showScore;
     }
 
     public void SaveSettings()
     {
-        var asj = new AudioSettingsJson(mua.volume, b1a.volume, b2a.volume, via.volume);
+        var asj = new SettingsJson(mua.volume, b1a.volume, via.volume, showScore);
         var str = JsonUtility.ToJson(asj);
-        File.WriteAllText(Application.persistentDataPath + "/AudioSettings.json", str);
+        File.WriteAllText(Application.persistentDataPath + "/Settings.json", str);
     }
 
     private IEnumerator Quit() {
@@ -781,6 +828,7 @@ public class StartupController : MonoBehaviour
         LoadSettings();
         StartCoroutine(IntroAnimation());
         SubCoroutines = new List<IEnumerator>();
+
         //var bs = new ButtonSchema();
         //bs.ButtonType = ButtonType.End.ToString();
         //bs.Label = "test";
