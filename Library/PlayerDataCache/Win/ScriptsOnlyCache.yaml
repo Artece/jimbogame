@@ -32,6 +32,7 @@ ScriptsOnlyBuild:
     - UnityEngine.UI.GridLayoutGroup
     - UnityEngine.UI.HorizontalLayoutGroup
     - UnityEngine.UI.Image
+    - UnityEngine.UI.InputField
     - UnityEngine.UI.LayoutElement
     - UnityEngine.UI.Outline
     - UnityEngine.UI.RawImage
@@ -83,6 +84,8 @@ ScriptsOnlyBuild:
       Script: {instanceID: 2598}
     - Class: 114
       Script: {instanceID: 2768}
+    - Class: 114
+      Script: {instanceID: 2818}
     - Class: 114
       Script: {instanceID: 2978}
     - Class: 114

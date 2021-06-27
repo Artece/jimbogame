@@ -481,7 +481,7 @@ public class StartupController : MonoBehaviour
                     if (noCondEnding)
                     {
                         // detect health etc.
-                        if (currentScore.HP < 1 || b.ButtonType == ButtonType.End.ToString())
+                        if (b.ButtonType == ButtonType.End.ToString() || currentScore.HP < 1)
                         {
                             // lose
                             AppendMediaQueue(vpc, selectedScenarioPath + currentBranchPos, b.VideoFilename);
@@ -604,10 +604,18 @@ public class StartupController : MonoBehaviour
         var baz = selectedScenarioPath + "Subtitles/" + bar[0] + ".srt";
         var contents = File.ReadAllText(baz);
         contents = contents.Trim();
-        var sections = contents.Split(new string[] { System.Environment.NewLine + System.Environment.NewLine }, System.StringSplitOptions.RemoveEmptyEntries);
+        print(contents);
+        print("ENVNL" + System.Environment.NewLine + "ENVNL");
+        //var splitter = GameObject.Find("ti").transform.Find("InputField").transform.Find("Text").GetComponent<Text>().text;
+        var splitter = "\r\n\r\n";
+        var sections = contents.Split(new string[] { splitter }, System.StringSplitOptions.RemoveEmptyEntries);
+        print("sectons length: " + sections.Length);
         foreach (var s in sections)
         {
-            var lines = s.Split('\n');
+            print(s);
+            var lines = s.Split(new string[] { System.Environment.NewLine }, System.StringSplitOptions.None);
+            var olines = s.Split('\n');
+            foreach (var l in olines) print(l);
             var times = lines[1].Split(new string[] { " --> " }, System.StringSplitOptions.None);
             var sta = times[0].Split(':');
             var sta2 = sta[2].Split(',');
@@ -628,7 +636,7 @@ public class StartupController : MonoBehaviour
             var finIe = _When(new WaitForSeconds(finish), () =>
             {
                 subtitleText.text = "";
-                print("finish time: " + start + " reached, clearing text: " + sub);
+                print("finish time: " + finish + " reached, clearing text: " + sub);
             });
             SubCoroutines.Add(staIe);
             SubCoroutines.Add(finIe);
