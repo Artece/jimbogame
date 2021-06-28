@@ -606,42 +606,82 @@ public class StartupController : MonoBehaviour
         contents = contents.Trim();
         print(contents);
         print("ENVNL" + System.Environment.NewLine + "ENVNL");
-        //var splitter = GameObject.Find("ti").transform.Find("InputField").transform.Find("Text").GetComponent<Text>().text;
-        var splitter = "\r\n\r\n";
-        var sections = contents.Split(new string[] { splitter }, System.StringSplitOptions.RemoveEmptyEntries);
+
+        gsp.SetActive(true);
+        var sel = GameObject.Find("ti").transform.Find("InputField").transform.Find("Text").GetComponent<Text>().text;
+        gsp.SetActive(false);
+
+        var splitter = System.Environment.NewLine;
+        if (sel != null || sel != "")
+        {
+            if (sel.StartsWith("\\n")) splitter = "\n";
+            if (sel.StartsWith("\\r")) splitter = "\r";
+            if (sel.StartsWith("\\r\\n")) splitter = "\r\n";
+        }
+        splitter += splitter;
+        //splitter = "\r\n\r\n";
+        string[] sections;
+        if (sel.EndsWith("regex"))
+        {
+            sections = System.Text.RegularExpressions.Regex.Split(contents, splitter);
+        }
+        else
+        {
+            sections = contents.Split(new string[] { splitter }, System.StringSplitOptions.RemoveEmptyEntries);
+        }
         print("sectons length: " + sections.Length);
         foreach (var s in sections)
         {
+            print("section");
             print(s);
-            var lines = s.Split(new string[] { System.Environment.NewLine }, System.StringSplitOptions.None);
+            print("section end");
+            var nlines = s.Split(new string[] { System.Environment.NewLine }, System.StringSplitOptions.RemoveEmptyEntries);
             var olines = s.Split('\n');
-            foreach (var l in olines) print(l);
+            var lines = olines;
+            print("lines");
+            foreach (var l in lines) print(l);
+            print("lines end");
+            print("A");
             var times = lines[1].Split(new string[] { " --> " }, System.StringSplitOptions.None);
+            print("B");
             var sta = times[0].Split(':');
+            print("C");
             var sta2 = sta[2].Split(',');
+            print("D");
             float start = float.Parse(sta[0]) * 3600f + float.Parse(sta[1]) * 60f + float.Parse(sta2[0]) + float.Parse(sta2[1]) * .001f;
+            print("E");
             var fin = times[1].Split(':');
+            print("F");
             var fin2 = fin[2].Split(',');
+            print("G");
             float finish = float.Parse(fin[0]) * 3600f + float.Parse(fin[1]) * 60f + float.Parse(fin2[0]) + float.Parse(fin2[1]) * .001f;
+            print("H");
             var sub = lines[2];
             print("scheduled start time: " + start + " | scheduled finish time: " + finish + " | text to display: " + sub);
             var eps = 0.05f;
             // is below a race condition? will try adding an eps to start
             // might need to consider a queue of some kind here
+            print("I");
             var staIe = _When(new WaitForSeconds(start + eps), () =>
             {
                 subtitleText.text = sub;
                 print("start time: " + start + " reached, displaying text: " + sub);
             });
+            print("J");
             var finIe = _When(new WaitForSeconds(finish), () =>
             {
                 subtitleText.text = "";
                 print("finish time: " + finish + " reached, clearing text: " + sub);
             });
+            print("K");
             SubCoroutines.Add(staIe);
+            print("L");
             SubCoroutines.Add(finIe);
+            print("M");
             StartCoroutine(staIe);
+            print("N");
             StartCoroutine(finIe);
+            print("O");
             vp.loopPointReached += AddVideoEventHandler((vp) =>
             {
                 subtitleText.text = "";
@@ -650,6 +690,7 @@ public class StartupController : MonoBehaviour
                 SubCoroutines.Remove(staIe);
                 SubCoroutines.Remove(finIe);
             });
+            print("P");
         }
     }
 
