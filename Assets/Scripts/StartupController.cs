@@ -611,12 +611,13 @@ public class StartupController : MonoBehaviour
         var sel = GameObject.Find("ti").transform.Find("InputField").transform.Find("Text").GetComponent<Text>().text;
         gsp.SetActive(false);
 
-        var splitter = System.Environment.NewLine;
+        var splitter = "\n";
         if (sel != null || sel != "")
         {
             if (sel.StartsWith("\\n")) splitter = "\n";
             if (sel.StartsWith("\\r")) splitter = "\r";
             if (sel.StartsWith("\\r\\n")) splitter = "\r\n";
+            if (sel.StartsWith("envnl")) splitter = System.Environment.NewLine;
         }
         splitter += splitter;
         //splitter = "\r\n\r\n";
@@ -636,6 +637,7 @@ public class StartupController : MonoBehaviour
             print(s);
             print("section end");
             var nlines = s.Split(new string[] { System.Environment.NewLine }, System.StringSplitOptions.RemoveEmptyEntries);
+            print("nlines length: " + nlines.Length);
             var olines = s.Split('\n');
             var lines = olines;
             print("lines");
